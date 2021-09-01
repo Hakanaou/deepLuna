@@ -11,6 +11,7 @@ Thumbs.db
 # Game script specific files #
 ##############################
 *.mrg
+*.txt
 
 # Configuration file #
 ######################
