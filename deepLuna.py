@@ -247,14 +247,15 @@ class StartWindow:
         self.info = Informations(self.info_window)
 
     def function_extract(self):
-        self.table_jp = extract_text("script_text.mrg","table.txt")
+        if os.path.exists("script_text.mrg"):
+            self.table_jp = extract_text("script_text.mrg","table.txt")
 
-        self.translation_window = tk.Toplevel(self.welcome)
+            self.translation_window = tk.Toplevel(self.welcome)
 
-        self.translation_window.attributes("-topmost", True)
-        self.translation_window.grab_set()
+            self.translation_window.attributes("-topmost", True)
+            self.translation_window.grab_set()
 
-        self.analysis = MainWindow(self.translation_window, self.table_jp)
+            self.analysis = MainWindow(self.translation_window, self.table_jp)
 
     def open_main_window(self):
         try:
