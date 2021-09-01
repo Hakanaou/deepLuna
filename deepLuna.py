@@ -332,7 +332,7 @@ class MainWindow:
         self.label_offsets = tk.Label(self.frame_choix, text="Original text offsets:")
         self.label_offsets.pack()
 
-        self.listbox_offsets = tk.Listbox(self.frame_choix, height=21, width=12, exportselection=False, selectmode=tk.EXTENDED)
+        self.listbox_offsets = tk.Listbox(self.frame_choix, height=21, width=18, exportselection=False, selectmode=tk.EXTENDED)
         self.listbox_offsets.bind('<Button-1>', self.show_text)
         self.listbox_offsets.bind('<Return>', self.show_text)
         self.listbox_offsets.pack(side = tk.LEFT, fill = tk.BOTH)
@@ -417,9 +417,9 @@ class MainWindow:
         n_trad = 0
         for i in range(len(self.table_file)):
             if self.table_file[i][3] == 1:
-                self.listbox_offsets.insert(i, self.table_file[i][0]+' *')
+                self.listbox_offsets.insert(i, str(i+1)+": "+self.table_file[i][0]+' *')
             else:
-                self.listbox_offsets.insert(i, self.table_file[i][0])
+                self.listbox_offsets.insert(i, str(i+1)+": "+self.table_file[i][0])
             if self.table_file[i][2] != "TRANSLATION":
                 self.listbox_offsets.itemconfig(i, bg='#BCECC8') #green for translated and inserted
                 n_trad = n_trad + 1
@@ -960,7 +960,7 @@ class MainWindow:
                         self.translated_text = requests.post(url='https://api-free.deepl.com/v2/translate', data={'auth_key':translationApi[self.j],'target_lang':translationLanguage,'text':self.block_text})
                         #print(self.translated_text.json())
                         self.translated_text = self.translated_text.json()["translations"][0]["text"]
-                        print(self.translated_text)
+                        #print(self.translated_text)
                         self.translated_text = self.translated_text.split('\n')
                         for self.k in range(cs[0],cs[-1]+1):
                             self.table_file[self.k][2] = self.translated_text[self.k-cs[0]]
