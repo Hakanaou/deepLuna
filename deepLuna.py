@@ -6,6 +6,7 @@ except ImportError:
     import tkinter as tk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 from tkinter.ttk import *
+import webbrowser
 try:
     import subprocess
 except ImportError:
@@ -282,14 +283,17 @@ class Informations:
         self.informations = information
 
         information.title("deepLuna — About")
-        information.geometry("500x350")
+        information.geometry("400x150")
         information.resizable(height=False, width=False)
 
-        self.nom = tk.Label(information, text ="deepLuna version 0.1 — 8/2021\nDevelopped by Tsukihimates\n", justify=tk.CENTER, borderwidth=10)
+        self.nom = tk.Label(information, text ="deepLuna version 1 — 1/9/2021\nDevelopped by Tsukihimates\n", justify=tk.CENTER, borderwidth=10)
         self.nom.pack()
 
-        self.explanations = tk.Label(information, text="LAUNCHING INSTRUCTIONS\n1/Place the script_text.mrg file in the same folder as deepLuna.py\n2/Launch deepLuna.py and choose \"Extract text\" upon launching.\n3/When extraction is done, the main windows opens\n4/When launching the next time deepLuna, just click on \"Open translation\"\n\nEDITING INSTRUCTIONS\n-Choose an offset in the scrolling list (DOUBLE-CLICK on it),\nadd your translation of the \"Original text\" in the\n \"Translated text\" field, and validate\n-Click on \"Save\" to save your translation\n-If you want to search for some text, click on \"Search\"\nYou can also replace directly text (only translated text, not original)")
+        self.explanations = tk.Button(information, text="https://github.com/Hakanaou/deepLuna", command=self.callback)
         self.explanations.pack()
+
+    def callback(self):
+        webbrowser.open_new("https://github.com/Hakanaou/deepLuna")
 
 
 class MainWindow:
@@ -773,6 +777,7 @@ class MainWindow:
         self.expected_time = tk.StringVar()
         self.expected_time.set('0:00:00')
 
+
         self.set_translation_frame = tk.Frame(self.translation, borderwidth=10)
 
         self.deepl_api_message = tk.Label(self.set_translation_frame, text="deepL API link:")
@@ -825,6 +830,21 @@ class MainWindow:
         self.remaining_time.grid(row=0,column=1,pady=10)
 
         self.time_frame.grid(row=2,column=0,pady=10)
+
+        self.translation.protocol("WM_DELETE_WINDOW", self.closing_translation_window)
+
+    def closing_translation_window(self):
+
+        #global search_window_open
+        #global searchResults
+        #global posSearch
+
+        self.translation.grab_release()
+        self.translation.destroy()
+        self.dl_editor.grab_set()
+        #search_window_open = False
+        #searchResults = []
+        #posSearch = 0
 
 
     def translate_game(self):
