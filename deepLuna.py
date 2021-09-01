@@ -943,7 +943,7 @@ class MainWindow:
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
-                    self.warning_message = tk.Label(self.warning, text="ERROR: Text couldn\'t be translated. Use another API link or do the translation manually.")
+                    self.warning_message = tk.Label(self.warning, text="ERROR: Text translated only partially. Please start again from the offset "+str(self.table_file[self.i][0]))
                     self.warning_message.grid(row=0,column=0,pady=5)
 
                     self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
@@ -1010,7 +1010,7 @@ class MainWindow:
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
-                    self.warning_message = tk.Label(self.warning, text="ERROR: Text translated only partially. Please start again from the offset "+str(self.table_file[self.i][0]))
+                    self.warning_message = tk.Label(self.warning, text="ERROR: Text couldn\'t be translated. Use another API link or do the translation manually.")
                     self.warning_message.grid(row=0,column=0,pady=5)
 
                     self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
