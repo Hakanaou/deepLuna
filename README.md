@@ -32,7 +32,7 @@ The main editor window contains on the left the scrolling list representing the 
 ### Translating the text
 Select an offset or a range of offset (using Shift+double-click), then click on the "Translate" button in the main screen, a new window will open. The first time you execute the script, you'll have to configure three options:
 
-a) "deepL API link": Input here your API link(s) from deepL. If you have several of them, just separate them by a comma. Currently works only for free deepL account (possible future update for a pro deepL API link). NOTE: If you copy/paste your link and it doesn't work, make sure that there is not an additional space character that was copied at the end of the link, this might happen.
+a) "deepL API link": Input here your API link(s) from deepL (replace the 0 that is there). If you have several of them, just separate them by a comma. Currently works only for free deepL account (possible future update for a pro deepL API link). NOTE: If you copy/paste your link and it doesn't work, make sure that there is not an additional space character that was copied at the end of the link, this might happen.
 
 b) "Language": Put the initials of the language into which you want to translate the script (e.g. EN for english, FR for french, etc.)
 
