@@ -1720,6 +1720,7 @@ class MainWindow:
                         self.finished_var = True
                         self.error = False
                     except:
+                        print("ERROR: Previous API link not working any longer, trying the next one if there is one.")
                         self.j += 1
                         self.finished_var = False
                         self.error = True
