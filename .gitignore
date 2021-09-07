@@ -16,3 +16,8 @@ Thumbs.db
 # Configuration file #
 ######################
 *.ini
+
+# Bit-compiled code #
+#####################
+__pycache__/
+mzx/__pycache__/

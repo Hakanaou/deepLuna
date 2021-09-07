@@ -717,6 +717,25 @@ class StartWindow:
                 self.translation_window.grab_set()
 
                 self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
+            else:
+                if os.path.exists("script_text.mrg") and not os.path.exists("allscr.mrg"):
+                    self.add_files = "allscr.mrg"
+                elif not os.path.exists("script_text.mrg") and os.path.exists("allscr.mrg"):
+                    self.add_files = "script_text.mrg"
+                else:
+                    self.add_files = "script_text.mrg and allscr.mrg"
+
+                self.warning = tk.Toplevel(self.welcome)
+                self.warning.title("deepLuna")
+                self.warning.attributes("-topmost", True)
+                self.warning.grab_set()
+
+                self.warning_message = tk.Label(self.warning, text="ERROR: Please add "+self.add_files+" in the folder!")
+                self.warning_message.grid(row=0,column=0,pady=5)
+
+                self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
+                self.warning_button.grid(row=1,column=0,pady=10)
+
 
     def function_reextract(self):
         self.warning.grab_release()
@@ -732,6 +751,24 @@ class StartWindow:
             self.translation_window.grab_set()
 
             self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
+        else:
+            if os.path.exists("script_text.mrg") and not os.path.exists("allscr.mrg"):
+                self.add_files = "allscr.mrg"
+            elif not os.path.exists("script_text.mrg") and os.path.exists("allscr.mrg"):
+                self.add_files = "script_text.mrg"
+            else:
+                self.add_files = "script_text.mrg and allscr.mrg"
+
+            self.warning = tk.Toplevel(self.welcome)
+            self.warning.title("deepLuna")
+            self.warning.attributes("-topmost", True)
+            self.warning.grab_set()
+
+            self.warning_message = tk.Label(self.warning, text="ERROR: Please add "+self.add_files+" in the folder!")
+            self.warning_message.grid(row=0,column=0,pady=5)
+
+            self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
+            self.warning_button.grid(row=1,column=0,pady=10)
 
 
 
@@ -1250,10 +1287,13 @@ class MainWindow:
 
         cs=self.listbox_offsets.curselection()
 
-        table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
-        if table_day[cs[0]][2][-1] == "\n":
-            table_day[cs[0]][2] = table_day[cs[0]][2][:-1]
-        if table_day[cs[0]][2] != "TRANSLATION":
+        self.line = self.text_trad.get("1.0", tk.END)
+
+        #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
+        if self.line[-1] == "\n":
+            self.line = self.line[:-1]
+        if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
+            table_day[cs[0]][2] = self.line
             self.listbox_offsets.itemconfig(cs[0], bg='#BCECC8') #green for translated and inserted
             n_trad = n_trad + 1
             n_trad_day = n_trad_day + 1
@@ -1261,7 +1301,8 @@ class MainWindow:
             self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
             self.prct_trad_day.delete("1.0",tk.END)
             self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        else:
+        elif table_day[cs[0]][2] != "TRANSLATION" and self.line == 'TRANSLATION':
+            table_day[cs[0]][2] = self.line
             self.listbox_offsets.itemconfig(cs[0], bg='#FFFFFF')
             if n_trad > 0:
                 n_trad = n_trad - 1
@@ -1270,6 +1311,13 @@ class MainWindow:
                 self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
                 self.prct_trad_day.delete("1.0",tk.END)
                 self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
+        elif table_day[cs[0]][2] != "TRANSLATION" and self.line != 'TRANSLATION':
+            table_day[cs[0]][2] = self.line
+            self.prct_trad.delete("1.0",tk.END)
+            self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
+            self.prct_trad_day.delete("1.0",tk.END)
+            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
+
 
         if search_window_open and len(searchResults)>0:
             try:
