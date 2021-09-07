@@ -265,6 +265,10 @@ def correct_day_subtable(subTable):
                     sentenceTL.append(subTable[j][2])
                 line.append(subTable[j][4])
                 j += 1
+
+            if len(sentenceTL) < len(offset) and sentenceTL != []:
+                sentenceTL = [(subTable[p][2] if subTable[p][2] != 'TRANSLATION' else subTable[p][1]) for p in range(i,j)]
+
             if sentenceTL == []:
                 sentenceTL = 'TRANSLATION'
             else:
@@ -467,9 +471,6 @@ def combine_elements_table(tab_new):
 
 
     return(tab_comb_new)
-
-#TODO: Deal with the issue of empty page for 06_01_CIEL06_2.tpl.txt
-
 
 
 def tplscript_to_txtfile(tplScript,niceText=False):
@@ -699,7 +700,7 @@ class StartWindow:
     def open_about(self):
         self.info_window = tk.Toplevel(self.welcome)
 
-        self.info_window.attributes("-topmost", True)
+        #self.info_window.attributes("-topmost", True)
         self.info_window.grab_set()
 
         self.info = Informations(self.info_window)
@@ -722,7 +723,7 @@ class StartWindow:
 
                 self.translation_window = tk.Toplevel(self.welcome)
 
-                self.translation_window.attributes("-topmost", True)
+                #self.translation_window.attributes("-topmost", True)
                 self.translation_window.grab_set()
 
                 self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
@@ -736,7 +737,7 @@ class StartWindow:
 
                 self.warning = tk.Toplevel(self.welcome)
                 self.warning.title("deepLuna")
-                self.warning.attributes("-topmost", True)
+                #self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
                 self.warning_message = tk.Label(self.warning, text="ERROR: Please add "+self.add_files+" in the folder!")
@@ -756,7 +757,7 @@ class StartWindow:
 
             self.translation_window = tk.Toplevel(self.welcome)
 
-            self.translation_window.attributes("-topmost", True)
+            #self.translation_window.attributes("-topmost", True)
             self.translation_window.grab_set()
 
             self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
@@ -788,7 +789,7 @@ class StartWindow:
             print("Loading done!")
             self.translation_window = tk.Toplevel(self.welcome)
 
-            self.translation_window.attributes("-topmost", True)
+            #self.translation_window.attributes("-topmost", True)
             self.translation_window.grab_set()
 
             self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
@@ -850,8 +851,8 @@ class MainWindow:
         self.s = Style()
         self.s.theme_use('clam')
         self.s.configure("blue.Horizontal.TProgressbar", foreground='green', background='green')
-        self.s.configure("smallFont.Treeview", font='TkDefaultFont 13')
-        self.s.configure("smallFont.Treeview.Heading", font='TkDefaultFont 13')
+        self.s.configure("smallFont.Treeview", font='TkDefaultFont 11')
+        self.s.configure("smallFont.Treeview.Heading", font='TkDefaultFont 11')
 
         self.name_day = tk.StringVar()
         self.name_day.set('No day loaded ')
@@ -887,7 +888,8 @@ class MainWindow:
         self.frame_tree = tk.Frame(self.frame_edition, borderwidth=20)
 
         self.tree = Treeview(self.frame_tree, height = 18, style="smallFont.Treeview")
-        self.tree.heading('#0', text='Game text', anchor='w')
+        self.tree.column('#0', anchor='w', width=260)
+        self.tree.heading('#0', text='Game text', anchor='center')
 
         self.table_scr = load_table("table_scr.txt")
 
@@ -1097,7 +1099,7 @@ class MainWindow:
         self.export_all_window = tk.Toplevel(self.dl_editor)
         self.export_all_window.resizable(height=False,width=False)
         self.export_all_window.title("deepLuna — Full export")
-        self.export_all_window.attributes("-topmost", True)
+        #self.export_all_window.attributes("-topmost", True)
         self.export_all_window.grab_set()
         self.expected_time_exp = tk.StringVar()
         self.expected_time_exp.set('0:00:00')
@@ -1217,6 +1219,9 @@ class MainWindow:
         sub_win.grab_release()
         sub_win.destroy()
 
+    def align_page(self,page,length):
+        return('0'*(length-len(page))+page)
+
     def open_day(self,table_day_name):
         global table_day
         print("Loading the selected day...")
@@ -1229,11 +1234,12 @@ class MainWindow:
         global n_trad_day
         n_trad = 0
         n_trad_day = 0
-        for self.i in range(len(table_day)):
+        self.len_table_day = len(table_day)
+        for self.i in range(self.len_table_day):
             if table_day[self.i][3] == 1:
-                self.listbox_offsets.insert(self.i, str(table_day[self.i][5])+" : "+str(table_day[self.i][4])+' *')
+                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(self.len_table_day)))+" : "+str(table_day[self.i][4])+' *')
             else:
-                self.listbox_offsets.insert(self.i, str(table_day[self.i][5])+" : "+str(table_day[self.i][4]))
+                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(self.len_table_day)))+" : "+str(table_day[self.i][4]))
             if table_day[self.i][2] != "TRANSLATION":
                 self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
                 n_trad = n_trad + 1
@@ -1412,7 +1418,7 @@ class MainWindow:
             self.search_window = tk.Toplevel(self.dl_editor)
             self.search_window.resizable(height=False, width=False)
             self.search_window.title("deepLuna — Search")
-            self.search_window.attributes("-topmost", True)
+            #self.search_window.attributes("-topmost", True)
             self.search_window.grab_set()
 
             self.search_frame = tk.Frame(self.search_window,borderwidth=10)
@@ -1636,7 +1642,7 @@ class MainWindow:
         self.translation = tk.Toplevel(self.dl_editor)
         self.translation.resizable(height=False,width=False)
         self.translation.title("deepLuna — Translation")
-        self.translation.attributes("-topmost", True)
+        #self.translation.attributes("-topmost", True)
         self.translation.grab_set()
         self.expected_time = tk.StringVar()
         self.expected_time.set('0:00:00')
