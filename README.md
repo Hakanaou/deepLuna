@@ -72,3 +72,7 @@ Feel free to raise an issue if something happens or if you wish to have some spe
 
 This readme will get a more substantial update in the following days with screenshots and/or video tutorials.
 
+### Acknoledgments
+
+I am really thankful to Hintay for his wonderful tools at https://github.com/Hintay/PS-HuneX_Tools. I relied on them heavily (unpack_allsrc.py, prep_tpl.py and the mzx decompression script) and included a modified version of them in deepLuna to make it perfectly operational.
+
