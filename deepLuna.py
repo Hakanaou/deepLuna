@@ -1028,9 +1028,9 @@ class MainWindow:
         self.frame_quit_buttons = tk.Frame(self.warning, borderwidth=2)
 
         self.quit_and_save_button = tk.Button(self.frame_quit_buttons, text="Save and Quit", width = 15, command = self.save_and_quit)
-        self.quit_and_save_button.grid(row=0,column=0,pady=10)
+        self.quit_and_save_button.grid(row=0,column=0,padx=5,pady=10)
         self.quit_button = tk.Button(self.frame_quit_buttons, text="Quit", width = 15, command = self.quit_editor)
-        self.quit_button.grid(row=0,column=1,pady=10)
+        self.quit_button.grid(row=0,column=1,padx=5,pady=10)
 
         self.frame_quit_buttons.grid(row=1, column=0, pady=5)
 
@@ -1309,6 +1309,16 @@ class MainWindow:
             else:
                 table_day[cs[0]][2] = self.line
                 self.line = self.line.split('#')
+
+                if len(self.line) > len(table_day[cs[0]][0]):
+                    self.line = self.line[:len(table_day[cs[0]][0])]
+                    table_day[cs[0]][2] = '#'.join(self.line)
+                else:
+                    if len(self.line) < len(table_day[cs[0]][0]):
+                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
+                            self.line.append("ERROR")
+                        table_day[cs[0]][2] = '#'.join(self.line)
+
                 for self.i in range(len(table_day[cs[0]][0])):
                     for self.j in range(len(self.table_file)):
                         if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
@@ -1344,10 +1354,20 @@ class MainWindow:
             else:
                 table_day[cs[0]][2] = self.line
                 self.line = self.line.split('#')
+
+                if len(self.line) > len(table_day[cs[0]][0]):
+                    self.line = self.line[:len(table_day[cs[0]][0])]
+                    table_day[cs[0]][2] = '#'.join(self.line)
+                else:
+                    if len(self.line) < len(table_day[cs[0]][0]):
+                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
+                            self.line.append("ERROR")
+                        table_day[cs[0]][2] = '#'.join(self.line)
+
                 for self.i in range(len(table_day[cs[0]][0])):
                     for self.j in range(len(self.table_file)):
                         if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[2][self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
+                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
             self.prct_trad.delete("1.0",tk.END)
             self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
             self.prct_trad_day.delete("1.0",tk.END)
@@ -1716,7 +1736,7 @@ class MainWindow:
                 print("\nAutomatic translation of the game with deepL (line-by-line):")
                 self.start = time.time()
                 while (self.j < self.len_translationApi and not self.finished_var):
-                    print(cs)
+                    #print(cs)
                     for self.i in range(cs[0],cs[-1]+1):
                         try:
                             self.translated_text = requests.post(url='https://api-free.deepl.com/v2/translate', data={'auth_key':translationApi[self.j],'target_lang':translationLanguage,'text':table_day[self.i][1] if table_day[self.i][3] == 0 else re.sub(r"(\<)|(\|.+?\>)", r"",table_day[self.i][1])})
@@ -1730,8 +1750,31 @@ class MainWindow:
                             else:
                                 print("Encountered error. Stopping the translation...")
                             break
-                        table_day[self.i][2] = self.translated_text
-                        print(translationLanguage+": "+self.translated_text)
+                        #table_day[self.i][2] = self.translated_text
+
+                        if type(table_day[self.i][0]) == str:
+                            table_day[self.i][2] = self.translated_text
+                            print(translationLanguage+": "+table_day[self.i][2])
+                        else:
+                            table_day[self.i][2] = self.translated_text
+                            self.translated_text = self.translated_text.split('#')
+
+                            if len(self.translated_text) > len(table_day[self.i][0]):
+                                self.translated_text = self.translated_text[:len(table_day[self.i][0])]
+                                table_day[self.i][2] = '#'.join(self.translated_text)
+                            else:
+                                if len(self.translated_text) < len(table_day[self.i][0]):
+                                    for self.erlen in range(len(table_day[self.i][0])-len(self.translated_text)):
+                                        self.translated_text.append("ERROR")
+                                    table_day[self.i][2] = '#'.join(self.translated_text)
+
+
+                            for self.l in range(len(table_day[self.i][0])):
+                                for self.k in range(len(self.table_file)):
+                                    if self.table_file[self.k][0] == table_day[self.i][0][self.l]:
+                                        self.table_file[self.k] = [self.table_file[self.k][0],self.table_file[self.k][1],self.translated_text[self.l],self.table_file[self.k][3],self.table_file[self.k][4],self.table_file[self.k][5],self.table_file[self.k][6],self.table_file[self.k][7],self.table_file[self.k][8]]
+                            print(translationLanguage+": "+table_day[self.i][2])
+
                         self.progress_translate["value"] = floor((self.i-cs[0]+1)/self.len_translation*1000)
                         self.new_time = datetime.timedelta(seconds=time.time()-self.start)
                         self.accum_lines = self.i-cs[0]+1
@@ -1740,7 +1783,7 @@ class MainWindow:
                         root.update()
 
 
-                    if self.i < cs[-1] or (len(cs) == 1 and cs == self.save_cs):
+                    if self.i < cs[-1] or (len(cs) == 1 and cs == self.save_cs and table_day[cs[0]][2] == 'TRANSLATION'):
                         self.j += 1
                         self.error = True
                     else:
@@ -1793,12 +1836,33 @@ class MainWindow:
                         self.translated_text = self.translated_text.json()["translations"][0]["text"]
                         self.translated_text = self.translated_text.split('\n')
                         for self.k in range(cs[0],cs[-1]+1):
-                            table_day[self.k][2] = self.translated_text[self.k-cs[0]]
+                            #table_day[self.k][2] = self.translated_text[self.k-cs[0]]
+
+                            if type(table_day[self.k][0]) == str:
+                                table_day[self.k][2] = self.translated_text[self.k-cs[0]]
+                            else:
+                                table_day[self.k][2] = self.translated_text[self.k-cs[0]]
+                                self.translated_text[self.k-cs[0]] = self.translated_text[self.k-cs[0]].split('#')
+
+                                if len(self.translated_text[self.k-cs[0]]) > len(table_day[self.k][0]):
+                                    self.translated_text[self.k-cs[0]] = self.translated_text[self.k-cs[0]][:len(table_day[self.k][0])]
+                                    table_day[self.k][2] = '#'.join(self.translated_text[self.k-cs[0]])
+                                else:
+                                    if len(self.translated_text[self.k-cs[0]]) < len(table_day[self.k][0]):
+                                        for self.erlen in range(len(table_day[self.k][0])-len(self.translated_text[self.k-cs[0]])):
+                                            self.translated_text[self.k-cs[0]].append("ERROR")
+                                        table_day[self.k][2] = '#'.join(self.translated_text[self.k-cs[0]])
+
+                                for self.l in range(len(table_day[self.k][0])):
+                                    for self.m in range(len(self.table_file)):
+                                        if self.table_file[self.m][0] == table_day[self.k][0][self.l]:
+                                            self.table_file[self.m] = [self.table_file[self.m][0],self.table_file[self.m][1],self.translated_text[self.k-cs[0]][self.l],self.table_file[self.m][3],self.table_file[self.m][4],self.table_file[self.m][5],self.table_file[self.m][6],self.table_file[self.m][7],self.table_file[self.m][8]]
+
                             print("\n*** Line n°"+str(self.k+1)+" ***")
                             print("JP: "+str(table_day[self.k][1]))
                             print(translationLanguage+": "+table_day[self.k][2])
                             self.progress_translate["value"] = floor((self.k-cs[0]+1)/self.len_translation*1000)
-                            self.enregistrer_fichier()
+                            #self.enregistrer_fichier()
                             self.new_time = datetime.timedelta(seconds=time.time()-self.start)
                             self.accum_lines = self.k-cs[0]+1
                             self.remain_time = (cs[-1]+1-self.k)*self.new_time/self.accum_lines

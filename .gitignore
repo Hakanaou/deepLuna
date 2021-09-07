@@ -21,3 +21,6 @@ Thumbs.db
 #####################
 __pycache__/
 mzx/__pycache__/
+DEBUG/
+update/
+export/
