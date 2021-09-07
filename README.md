@@ -1,8 +1,8 @@
 # deepLuna
-Injector/automatic translator (using deepL API) for Tsukihime Remake
+Extractor/Editor/Translator/Injector for Tsukihime Remake
 
 ## About
-deepLuna, from "deepL", the machine translation service, and "Luna", the name of the Roman Moon goddess, is a Python script with a GUI interface that works as an extractor/editor/translator/injector for the text of the Tsukihime Remake game on Switch and possibly on PS4, while taking into account the whole internal structure of the script.
+deepLuna, from "deepL", the machine translation service, and "Luna", the name of the Roman Moon goddess, is a Python script with a GUI interface that works as an extractor/editor/translator (with deepL API)/injector for the text of the Tsukihime Remake game on Switch and possibly on PS4, while taking into account the whole internal structure of the script.
 
 ## Installation
 You just need a regular Python distribution, for example the last one from https://www.python.org/downloads/, and then launch the script deepLuna.py using a Python IDE, for example IDLE that you get by default, or some other (Spyder, Pyzo, etc.).
@@ -17,19 +17,19 @@ You just need a regular Python distribution, for example the last one from https
 ### Extracting the text (first compulsory step)
 After launching deepLuna, click on "Extract text" and wait until the extraction finishes.
 
-**IMPORTANT NOTE:** This might take a bit of time, around a minute, and this is normal if you have the feeling that the graphical interface is lagging. The script is actually working at the command line leve, so you can follow what is going on in the python console or in the console of the IDE you're using.
+**IMPORTANT NOTE:** This might take a bit of time, around a minute, and this is normal if you have the feeling that the graphical interface is lagging. The script is actually working at the command line level, so you can follow what is going on in the python console or in the console of the IDE you're using.
 
-The main editor window should open. If nothing happens when you click on "Extract text", make sure that you placed both script files in the same folder as deepLuna and check that their respective names are "script_text.mrg" and "allscr.mrg" (these are the original names of the files).
+The main editor window should open. If the script complains (an error window will open), make sure that you placed both script files in the same folder as deepLuna and check that their respective names are "script_text.mrg" and "allscr.mrg" (these are the original names of the files).
 
 ### Editing the text
 Once the first extraction has been done, when launching deepLuna simply click on "Open translation". This might also take some seconds.
 
 The main editor window contains three main elements:
-- On the left there is a tree view of the text files of the game, and it is the only active element at the beginning. This section is the organized by heroine and days ("Arcueid" and "Ciel"). The remaining three sections concern the bad end section "Teach Me, Ciel-sensei!", the part that is common to both Arcueid's and Ciel's route called "Common" and finally the section "Hidden text" that show some text grabbed by the script that is not used ingame. The first thing you have to do is choose one of the scenes that appear as elements of the form "TEXT_WITH_UNDERSCORES_AND_NUMBERS", and then double-click on it. **IMPORTANT NOTE:** When clicking on one of the element, due to the structure of the script, you might have to wait a few seconds before the next content loads - this is perfectly normal.
-- The second element from the left, a scrolling list, activates. It shows the content of the selected scene in the form "a : b" where a is the page and b is the line on the page a. Double-click on any element. You might also note at this point that the two field above activated, and will show up the percentage of translation done on the selected scene as well as for the global file, computed both in real time. We will come back to them in the section below.
-- Finally, you have the main editing part: a field that show the original japanese selected line called "Original text", a field called "Translated text" below where you have to input your translation of the line above by replacing the word "TRANSLATION" that is there, and finally some buttons that will allow you to perform all the relevant actions.
+- On the left there is a tree view of the text files of the game, and it is the only active element at the beginning. This section is the organized by heroine and days ("Arcueid" and "Ciel"). The remaining three sections concern the bad end section "Teach Me, Ciel-sensei!", the part that is common to both Arcueid's and Ciel's route called "Common" and finally the section "Hidden text" that shows some text grabbed by the script that is not used ingame. The first thing you have to do is choose one of the scenes that appear as elements of the form "TEXT_WITH_UNDERSCORES_AND_NUMBERS", and then double-click on it. **IMPORTANT NOTE:** When clicking on one of the element, due to the structure of the script, you might have to wait a few seconds before the next content loads - this is perfectly normal.
+- The second element from the left, a scrolling list, activates. It shows the content of the selected scene in the form "a : b" where a is the page and b is the line on the page a. Double-click on any element. You might also note at this point that the two fields above activated, and will show up the percentage of translation done on the selected scene as well as for the global file, computed both in real time. We will come back to them in the section below.
+- Finally, you have the main editing part: a field that shows the original japanese selected line called "Original text", a field called "Translated text" below where you have to input your translation of the line above by replacing the word "TRANSLATION" that is there, and finally some buttons that will allow you to perform all the relevant actions.
 
-**IMPORTANT NOTE:** When in some line you meet the pound/hashtag character "#", PLEASE do not delete it and leave as it is in the translation! This character symbolizes the fact that the line is shown with a small break where the "#" is, and from a low-level perspective, symbolizes that the line is cut into two separate strings with altogether different points, so erasing it might and will break everything.
+**IMPORTANT NOTE:** When in some line you meet the pound/hashtag character "#", PLEASE do not delete it and leave as it is in the translation! This character symbolizes the fact that the line is shown ingame with a small break where the "#" is, and from a low-level perspective, symbolizes that the line is cut into two separate strings with altogether different pointers, so erasing it WILL break everything.
 
 #### Commands
 **Validate**: When you finish inputting the translation for a line, click on this button. The corresponding offset will become green to confirm the translation and the percentage of advancement of translation will update for the scene as well as for the total game.
@@ -59,7 +59,7 @@ NOTE: The script inserts everytime the full translation.
 ### **NEW:** Exporting functions
 
 Since the v2.0, deepLuna makes your life easier if you're working as a group on the translation, which is usually the case. How to keep everything up to date for all the people? Whenever you finish working on some scene, just press on "Export", and deepLuna will generate an update file in the update folder, in the same directory.
-If you look inside, you will see that this is a simply text file with the same name as the scene you were working on, and if you open it, you'll realise that this is exactly the case - the exported file contains the whole scene in a very nice and readble way, with the original sentences where they were, and the freshly translated sentences where the japanese one were supposed to be. It suffices now to send this file to your colleagues, that will simply have to put it in the "update" folder. When they launch deepLuna the next time they want to use it, it will update itself and include the new file in its own database.
+If you look inside, you will see that this is a simple text file with the same name as the scene you were working on, and if you open it, you'll realise that this is exactly the case - the exported file contains the whole scene in a very nice and readable way, with the original sentences where they were, and the freshly translated sentences where the japanese ones were supposed to be. It suffices now to send this file to your colleagues, and they will simply have to put it in the "update" folder. When they launch deepLuna the next time they want to use it, it will update itself and include the new file in its own database.
 
 If you need for some reason to export your whole personal database, this is also doable - simply click on "Export all", and a new window will open, asking you for confirmation. Note that this operation might take up to 10 mn on some older computers.
 
