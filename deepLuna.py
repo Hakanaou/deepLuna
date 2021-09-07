@@ -293,7 +293,7 @@ def update_database():
 
         os.chdir('update/')
 
-        print("Updating the main database:")
+        print("Updating the main database...")
 
         newTable = mainTable
 
@@ -391,6 +391,8 @@ def initial_full_extract():
             tableList += fileList
             scrFullInfo.append(scrList)
 
+    print("Initial extraction finished.\nSorting the database and adding missing text to it...")
+
     tableList = sorted(tableList, key = lambda x: int(x[0],16))
 
     os.remove('script_text.mrg')
@@ -416,6 +418,8 @@ def initial_full_extract():
     shutil.rmtree('allscr-decoded')
     if not os.path.exists("update"):
         os.mkdir('update')
+
+    print("Initialisation finished!")
 
     return([tableList,scrFullInfo])
 
@@ -472,7 +476,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
 
     tpl = open(tplScript,"r+",encoding="utf-8")
     tplData = tpl.read()
-    tplData = re.sub(r"\~\_(ZZ|ZY|W|R|S|F|G|V|C|T|M|A|J|I|X)[A-Za-z0-9\(\)\,\.\-\_\`\:\+]+?\~", r"",tplData)
+    tplData = re.sub(r"\~\_(ZZ|ZY|W|R|S|F|G|V|C|T|M|A|J|I|X|E)[A-Za-z0-9\(\)\,\.\-\_\`\:\#\+]+?\~", r"",tplData)
     tplData = re.sub(r"\~\_PGST\((\-1|10000)\)\~\n",r"",tplData)
     tplData = re.sub(r"\~\n{2,}",r"~\n",tplData)
     tplData = re.sub(r"\)\n{2,}",r")\n",tplData)
@@ -488,13 +492,14 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\nP\ns\_",r"\ns_",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\;\/1\n",r"\n",tplData)
+    tplData = re.sub(r"\n\~\n",r"\n",tplData)
 
     lineInformation = tplData.split('P')[1:-1]
 
     seen = {}
     lineInformation = [[seen.setdefault(x, x) for x in page.split('\n')[1:-1] if x not in seen] for page in lineInformation]
 
-    txt = open("test.txt","w+",encoding="utf-8")
+    txt = open("debug.txt","w+",encoding="utf-8")
     txt.write(tplData)
     txt.close()
 
@@ -598,6 +603,8 @@ def read_table(tableName):
 
 def insert_translation(scriptFile,translatedText,scriptFileTranslated):
 
+    print("Starting script injection...")
+
     scriptJP = open(scriptFile, 'rb')
     scriptTL = open(scriptFileTranslated, 'wb')
     translatedTextFile = open(translatedText, 'r', encoding="utf-8")
@@ -632,6 +639,8 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated):
     scriptJP.close()
     scriptTL.close()
     translatedTextFile.close()
+
+    print("Script injection done!")
 
 
 def names_organize(listNames):
@@ -771,12 +780,12 @@ class StartWindow:
             self.warning_button.grid(row=1,column=0,pady=10)
 
 
-
-
     def open_main_window(self):
         if os.path.exists("table.txt") and os.path.exists("table_scr.txt"):
             self.table_jp = update_database()
+            print("Loading the database...")
             self.table_scr = load_table("table_scr.txt")
+            print("Loading done!")
             self.translation_window = tk.Toplevel(self.welcome)
 
             self.translation_window.attributes("-topmost", True)
@@ -1210,6 +1219,7 @@ class MainWindow:
 
     def open_day(self,table_day_name):
         global table_day
+        print("Loading the selected day...")
         if table_day_name != False:
             table_day = gen_day_subtable(table_day_name,self.table_scr_file,self.table_file)
         self.listbox_offsets.delete(0,tk.END)
@@ -1234,6 +1244,7 @@ class MainWindow:
         self.prct_trad_day.delete("1.0",tk.END)
         self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
         self.name_day.set(str(table_day[0][6][0])+": ")
+        print("Day loaded!")
 
 
     def open_table(self):
@@ -1293,7 +1304,15 @@ class MainWindow:
         if self.line[-1] == "\n":
             self.line = self.line[:-1]
         if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
-            table_day[cs[0]][2] = self.line
+            if type(table_day[cs[0]][0]) == str:
+                table_day[cs[0]][2] = self.line
+            else:
+                table_day[cs[0]][2] = self.line
+                self.line = self.line.split('#')
+                for self.i in range(len(table_day[cs[0]][0])):
+                    for self.j in range(len(self.table_file)):
+                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
+                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
             self.listbox_offsets.itemconfig(cs[0], bg='#BCECC8') #green for translated and inserted
             n_trad = n_trad + 1
             n_trad_day = n_trad_day + 1
@@ -1302,7 +1321,15 @@ class MainWindow:
             self.prct_trad_day.delete("1.0",tk.END)
             self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
         elif table_day[cs[0]][2] != "TRANSLATION" and self.line == 'TRANSLATION':
-            table_day[cs[0]][2] = self.line
+            if type(table_day[cs[0]][0]) == str:
+                table_day[cs[0]][2] = self.line
+            else:
+                table_day[cs[0]][2] = self.line
+                #self.line = self.line.split('#')
+                for self.i in range(len(table_day[cs[0]][0])):
+                    for self.j in range(len(self.table_file)):
+                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
+                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],"TRANSLATION",self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
             self.listbox_offsets.itemconfig(cs[0], bg='#FFFFFF')
             if n_trad > 0:
                 n_trad = n_trad - 1
@@ -1312,7 +1339,15 @@ class MainWindow:
                 self.prct_trad_day.delete("1.0",tk.END)
                 self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
         elif table_day[cs[0]][2] != "TRANSLATION" and self.line != 'TRANSLATION':
-            table_day[cs[0]][2] = self.line
+            if type(table_day[cs[0]][0]) == str:
+                table_day[cs[0]][2] = self.line
+            else:
+                table_day[cs[0]][2] = self.line
+                self.line = self.line.split('#')
+                for self.i in range(len(table_day[cs[0]][0])):
+                    for self.j in range(len(self.table_file)):
+                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
+                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[2][self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
             self.prct_trad.delete("1.0",tk.END)
             self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
             self.prct_trad_day.delete("1.0",tk.END)
@@ -1334,11 +1369,15 @@ class MainWindow:
         global searchResults
         global table_day
 
+        print("Saving file, please wait...")
+
         self.table_file = self.reinsert_daytable(self.table_scr_file,self.table_file)
 
         tableFile = open("table.txt","w",encoding="utf-8")
         tableFile.write("\n".join([str(elem) for elem in self.table_file]))
         tableFile.close()
+
+        print("Database saved!")
 
     def search_text_window(self):
 
