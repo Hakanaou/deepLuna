@@ -709,6 +709,7 @@ class StartWindow:
         if os.path.exists("table.txt") and os.path.exists("table_scr.txt"):
             self.warning = tk.Toplevel(self.welcome)
             self.warning.title("deepLuna")
+            self.warning.resizable(height=False, width=False)
             self.warning.attributes("-topmost", True)
             self.warning.grab_set()
 
@@ -737,6 +738,7 @@ class StartWindow:
 
                 self.warning = tk.Toplevel(self.welcome)
                 self.warning.title("deepLuna")
+                self.warning.resizable(height=False, width=False)
                 #self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
@@ -771,6 +773,7 @@ class StartWindow:
 
             self.warning = tk.Toplevel(self.welcome)
             self.warning.title("deepLuna")
+            self.warning.resizable(height=False, width=False)
             self.warning.attributes("-topmost", True)
             self.warning.grab_set()
 
@@ -796,6 +799,7 @@ class StartWindow:
         else:
             self.warning = tk.Toplevel(self.welcome)
             self.warning.title("deepLuna")
+            self.warning.resizable(height=False, width=False)
             self.warning.attributes("-topmost", True)
             self.warning.grab_set()
 
@@ -1021,6 +1025,7 @@ class MainWindow:
 
         self.warning = tk.Toplevel(self.dl_editor)
         self.warning.title("deepLuna")
+        self.warning.resizable(height=False, width=False)
         self.warning.attributes("-topmost", True)
         self.warning.grab_set()
 
@@ -1061,6 +1066,7 @@ class MainWindow:
                 export_day(table_day[0][6][0],self.table_scr_file,self.table_file)
                 self.warning = tk.Toplevel(self.dl_editor)
                 self.warning.title("deepLuna")
+                self.warning.resizable(height=False, width=False)
                 self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
@@ -1072,6 +1078,7 @@ class MainWindow:
             else:
                 self.warning = tk.Toplevel(self.dl_editor)
                 self.warning.title("deepLuna")
+                self.warning.resizable(height=False, width=False)
                 self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
@@ -1152,6 +1159,7 @@ class MainWindow:
         root.update()
         self.warning = tk.Toplevel(self.dl_editor)
         self.warning.title("deepLuna")
+        self.warning.resizable(height=False, width=False)
         self.warning.attributes("-topmost", True)
         self.warning.grab_set()
 
@@ -1206,6 +1214,7 @@ class MainWindow:
 
         self.warning = tk.Toplevel(self.dl_editor)
         self.warning.title("deepLuna")
+        self.warning.resizable(height=False, width=False)
         self.warning.attributes("-topmost", True)
         self.warning.grab_set()
 
@@ -1237,9 +1246,9 @@ class MainWindow:
         self.len_table_day = len(table_day)
         for self.i in range(self.len_table_day):
             if table_day[self.i][3] == 1:
-                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(self.len_table_day)))+" : "+str(table_day[self.i][4])+' *')
+                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4])+' *')
             else:
-                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(self.len_table_day)))+" : "+str(table_day[self.i][4]))
+                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4]))
             if table_day[self.i][2] != "TRANSLATION":
                 self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
                 n_trad = n_trad + 1
@@ -1805,6 +1814,7 @@ class MainWindow:
                     root.update()
                     self.warning = tk.Toplevel(self.dl_editor)
                     self.warning.title("deepLuna")
+                    self.warning.resizable(height=False, width=False)
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
@@ -1822,6 +1832,7 @@ class MainWindow:
                     root.update()
                     self.warning = tk.Toplevel(self.dl_editor)
                     self.warning.title("deepLuna")
+                    self.warning.resizable(height=False, width=False)
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
@@ -1893,6 +1904,7 @@ class MainWindow:
                     root.update()
                     self.warning = tk.Toplevel(self.dl_editor)
                     self.warning.title("deepLuna")
+                    self.warning.resizable(height=False, width=False)
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
@@ -1910,6 +1922,7 @@ class MainWindow:
                     root.update()
                     self.warning = tk.Toplevel(self.dl_editor)
                     self.warning.title("deepLuna")
+                    self.warning.resizable(height=False, width=False)
                     self.warning.attributes("-topmost", True)
                     self.warning.grab_set()
 
