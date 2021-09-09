@@ -22,5 +22,6 @@ Thumbs.db
 __pycache__/
 mzx/__pycache__/
 DEBUG/
+BACKUP/
 update/
 export/

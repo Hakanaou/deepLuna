@@ -158,6 +158,39 @@ def orders_line(string):
         return(splitStr)
 
 
+def add_linebreaks(line,length):
+
+    if len(line) < length:
+        return(line)
+    else:
+        i = 0
+        splitLine = line.split(' ')
+        listPos = []
+        if length < max([len(elem) for elem in splitLine]):
+            return(False)
+        else:
+            while i < len(splitLine):
+                cumulLen = 0
+                while cumulLen <= length and i < len(splitLine):
+                    cumulLen += (len(splitLine[i])+1)
+                    if cumulLen <= length:
+                        i += 1
+                    elif cumulLen == length+1:
+                        i += 1
+                        listPos.append(i)
+                        break
+                    else:
+                        listPos.append(i)
+                        break
+            for i in range(len(listPos)):
+                splitLine.insert(listPos[i]+i,'\n')
+            returnLine = ' '.join(splitLine)
+            returnLine  = re.sub(r"( \n )|( \n)",r"\n",returnLine)
+            returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
+            return(returnLine)
+
+
+
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
 def export_day(dayName,scrTable,mainTable):
 
@@ -1318,6 +1351,9 @@ class MainWindow:
         #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
         if self.line[-1] == "\n":
             self.line = self.line[:-1]
+
+        self.line = add_linebreaks(self.line,55)
+
         if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
             if type(table_day[cs[0]][0]) == str:
                 table_day[cs[0]][2] = self.line
