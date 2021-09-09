@@ -658,7 +658,7 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated):
 
     for line in dataTLFile:
 
-        newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else line[2].encode("utf-8")+b'\x0D\x0A'
+        newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
         bytesListTLText += newLine
         totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
         bytesNewPointers += bytes.fromhex(totalLenText)
@@ -1351,8 +1351,6 @@ class MainWindow:
         #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
         if self.line[-1] == "\n":
             self.line = self.line[:-1]
-
-        self.line = add_linebreaks(self.line,55)
 
         if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
             if type(table_day[cs[0]][0]) == str:
