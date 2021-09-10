@@ -255,7 +255,6 @@ def gen_day_subtable(dayName,scrTable,mainTable):
     if dayName != "void":
         for day in scrTable:
             if day[0] == dayName:
-                #print("Yes")
                 scrInfoTable = day
                 break
 
@@ -308,7 +307,7 @@ def correct_day_subtable(subTable):
                 sentenceTL = '#'.join(sentenceTL)
             sentence = '#'.join(sentence)
             newSubTable.append([offset,sentence,sentenceTL,subTable[i][3],line,subTable[i][5],subTable[i][6],subTable[i][7],subTable[i][8]])
-            i=j
+            i=j-1
         else:
             newSubTable.append(subTable[i])
         i += 1
