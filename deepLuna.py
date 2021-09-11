@@ -1052,6 +1052,19 @@ class MainWindow:
         self.dl_editor.protocol("WM_DELETE_WINDOW", self.closing_main_window)
 
         self.show_text(None)
+        self.load_percentage()
+
+
+    def load_percentage(self):
+
+        global n_trad
+        n_trad = 0
+        for i in range(len(self.table_file)):
+            if self.table_file[i][2] != "TRANSLATION":
+                n_trad = n_trad + 1
+
+        self.prct_trad.delete("1.0",tk.END)
+        self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
 
     def closing_main_window(self):
 
@@ -1138,7 +1151,6 @@ class MainWindow:
         self.export_all_window = tk.Toplevel(self.dl_editor)
         self.export_all_window.resizable(height=False,width=False)
         self.export_all_window.title("deepLuna — Full export")
-        #self.export_all_window.attributes("-topmost", True)
         self.export_all_window.grab_set()
         self.expected_time_exp = tk.StringVar()
         self.expected_time_exp.set('0:00:00')
@@ -1271,9 +1283,7 @@ class MainWindow:
         self.listbox_offsets.delete(0,tk.END)
         self.text_orig.delete("1.0",tk.END)
         self.text_trad.delete("1.0",tk.END)
-        global n_trad
         global n_trad_day
-        n_trad = 0
         n_trad_day = 0
         self.len_table_day = len(table_day)
         for self.i in range(self.len_table_day):
@@ -1283,11 +1293,9 @@ class MainWindow:
                 self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4]))
             if table_day[self.i][2] != "TRANSLATION":
                 self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
-                n_trad = n_trad + 1
                 n_trad_day = n_trad_day + 1
 
-        self.prct_trad.delete("1.0",tk.END)
-        self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
+
         self.prct_trad_day.delete("1.0",tk.END)
         self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
         self.name_day.set(str(table_day[0][6][0])+": ")
