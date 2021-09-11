@@ -1280,25 +1280,28 @@ class MainWindow:
         print("Loading the selected day...")
         if table_day_name != False:
             table_day = gen_day_subtable(table_day_name,self.table_scr_file,self.table_file)
-        self.listbox_offsets.delete(0,tk.END)
-        self.text_orig.delete("1.0",tk.END)
-        self.text_trad.delete("1.0",tk.END)
-        global n_trad_day
-        n_trad_day = 0
-        self.len_table_day = len(table_day)
-        for self.i in range(self.len_table_day):
-            if table_day[self.i][3] == 1:
-                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4])+' *')
-            else:
-                self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4]))
-            if table_day[self.i][2] != "TRANSLATION":
-                self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
-                n_trad_day = n_trad_day + 1
+        if table_day != []:
+            self.listbox_offsets.delete(0,tk.END)
+            self.text_orig.delete("1.0",tk.END)
+            self.text_trad.delete("1.0",tk.END)
+            global n_trad_day
+            n_trad_day = 0
+            self.len_table_day = len(table_day)
+            for self.i in range(self.len_table_day):
+                if table_day[self.i][3] == 1:
+                    self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4])+' *')
+                else:
+                    self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4]))
+                if table_day[self.i][2] != "TRANSLATION":
+                    self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
+                    n_trad_day = n_trad_day + 1
 
 
-        self.prct_trad_day.delete("1.0",tk.END)
-        self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        self.name_day.set(str(table_day[0][6][0])+": ")
+            self.prct_trad_day.delete("1.0",tk.END)
+            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
+            self.name_day.set(str(table_day[0][6][0])+": ")
+        else:
+            print("This day is empty.")
         print("Day loaded!")
 
 
