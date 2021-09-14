@@ -509,7 +509,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
 
     tpl = open(tplScript,"r+",encoding="utf-8")
     tplData = tpl.read()
-    tplData = re.sub(r"\~\_(ZZ|ZY|W|R|S|F|G|V|C|T|M|A|J|I|X|E)[A-Za-z0-9\(\)\,\.\-\_\`\:\#\+]+?\~", r"",tplData)
+    tplData = re.sub(r"\~\_(ZZ|ZY|W|R|S|F|G|V|C|T|M|N|A|J|I|X|E)[A-Za-z0-9\(\)\,\.\-\_\`\:\#\+]+?\~", r"",tplData)
     tplData = re.sub(r"\~\_PGST\((\-1|10000)\)\~\n",r"",tplData)
     tplData = re.sub(r"\~\n{2,}",r"~\n",tplData)
     tplData = re.sub(r"\)\n{2,}",r")\n",tplData)
