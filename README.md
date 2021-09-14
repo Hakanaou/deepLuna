@@ -7,6 +7,18 @@ deepLuna, from "deepL", the machine translation service, and "Luna", the name of
 ## Installation
 You just need a regular Python distribution, for example the last one from https://www.python.org/downloads/, and then launch the script deepLuna.py using a Python IDE, for example IDLE that you get by default, or some other (Spyder, Pyzo, etc.).
 
+For installing dependencies, it's recommended to use a python virtualenv.
+To create a new virtualenv and install the dependencies necessary for deepLuna:
+
+```bash
+# Create a new virtual environment valled 'venv'
+python3 -m virtualenv venv
+# Activate the virtual enviroment, so that pip installs packages locally
+. venv/bin/activate
+# Install the necessary requirements
+pip3 install -r requirements.txt
+```
+
 ## Usage
 
 ### Preprocessing steps
