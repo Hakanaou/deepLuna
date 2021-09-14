@@ -516,17 +516,40 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\n\n\~",r"~",tplData)
     tplData = re.sub(r"\n\~\~",r"",tplData)
     tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
-    tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[a-z1-9]*)*\$)|(\))", r"",tplData)
+    tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[cr1-9]*)*\$)|(\))", r"",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\@k\@e\)", r"", tplData)
+    tplData = re.sub(r"\@x\@r", r"@x",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
-    tplData = re.sub(r"\@k\@e\n",r"\n",tplData)
-    tplData = re.sub(r"\@k\@e",r"",tplData)
     tplData = re.sub(r"(P\n)+",r"P\n",tplData)
     tplData = re.sub(r"P\nP",r"P",tplData)
     tplData = re.sub(r"\nP\ns\_",r"\ns_",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\;\/1\n",r"\n",tplData)
     tplData = re.sub(r"\n\~\n",r"\n",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_ZM[0-9A-Za-z]+?\(\@x\$", r"@x",tplData)
+    tplData = re.sub(r"(\@k\@e)?\n\@x", r"_n\n", tplData)
+    tplData = re.sub(r"\@k\@e\ns\_",r"\ns_",tplData)
+    tplData = re.sub(r"\@k\@e",r"",tplData)
+    tplData = re.sub(r"\n\<[0-9]+?\>\_MSAD\(\_n\n", r"\n", tplData)
+
+    # tplData = re.sub(r"\~\_PGST\((\-1|10000)\)\~\n",r"",tplData)
+    # tplData = re.sub(r"\~\n{2,}",r"~\n",tplData)
+    # tplData = re.sub(r"\)\n{2,}",r")\n",tplData)
+    # tplData = re.sub(r"\n\n\~",r"~",tplData)
+    # tplData = re.sub(r"\n\~\~",r"",tplData)
+    # tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
+    # tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[a-z1-9]*)*\$)|(\))", r"",tplData)
+    # tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
+    # tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
+    # tplData = re.sub(r"\@k\@e\n",r"\n",tplData)
+    # tplData = re.sub(r"\@k\@e",r"",tplData)
+    # tplData = re.sub(r"(P\n)+",r"P\n",tplData)
+    # tplData = re.sub(r"P\nP",r"P",tplData)
+    # tplData = re.sub(r"\nP\ns\_",r"\ns_",tplData)
+    # tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
+    # tplData = re.sub(r"\;\/1\n",r"\n",tplData)
+    # tplData = re.sub(r"\n\~\n",r"\n",tplData)
 
     tplData = re.sub(r"(\n){2,}",r"\n",tplData)
 
@@ -544,7 +567,8 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     lineInformation = [[seen.setdefault(x, x) for x in (page.split('\n')[1:-1] if page.split('\n')[-1] == '' else page.split('\n')[1:]) if x not in seen] for page in lineInformation]
 
     txt = open("debug.txt","w+",encoding="utf-8")
-    txt.write(tplData)
+    txt.write(str(tplScript.split('.')[0])+"\n"+tplData)
+    #txt.write(tplData)
     txt.close()
 
     scrInfo = [tplScript.split('.')[0],lineInformation]
@@ -666,12 +690,34 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated):
     totalLenText = '00000000'
     bytesListTLText = b''
 
+    dataTLFile = correct_day_subtable(dataTLFile)
+
+    # for line in dataTLFile:
+    #
+    #     newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
+    #     bytesListTLText += newLine
+    #     totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
+    #     bytesNewPointers += bytes.fromhex(totalLenText)
+
     for line in dataTLFile:
 
-        newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
-        bytesListTLText += newLine
-        totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-        bytesNewPointers += bytes.fromhex(totalLenText)
+        if type(line[0]) == str:
+            newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
+            bytesListTLText += newLine
+            totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
+            bytesNewPointers += bytes.fromhex(totalLenText)
+        else:
+            if line[2] != "TRANSLATION":
+                newText = add_linebreaks(line[2],55,True).split('#')
+            else:
+                newText = line[1].split('#')
+
+            for i in range(len(newText)):
+                newLine = newText[i].encode("utf-8")+b'\x0D\x0A'
+                #print(newLine)
+                bytesListTLText += newLine
+                totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
+                bytesNewPointers += bytes.fromhex(totalLenText)
 
     bytesListTLText = bytesListTLText[:-2]
     bytesNewPointers = bytesNewPointers[:-4] + bytesNewPointers[-8:-4] + 12*b'\xFF'
