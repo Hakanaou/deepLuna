@@ -290,7 +290,7 @@ def correct_day_subtable(subTable):
             sentence = []
             sentenceTL = []
             line = []
-            while subTable[j][7] == 1:
+            while j < len(subTable) and subTable[j][7] == 1:
                 offset.append(subTable[j][0])
                 sentence.append(subTable[j][1])
                 if subTable[j][2] != 'TRANSLATION':
