@@ -167,7 +167,7 @@ def add_linebreaks(line,length):
         splitLine = line.split(' ')
         listPos = []
         if length < max([len(elem) for elem in splitLine]):
-            return(False)
+            return(line)
         else:
             while i < len(splitLine):
                 cumulLen = 0
@@ -520,6 +520,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
     tplData = re.sub(r"\@k\@e\n",r"\n",tplData)
+    tplData = re.sub(r"\@k\@e",r"",tplData)
     tplData = re.sub(r"(P\n)+",r"P\n",tplData)
     tplData = re.sub(r"P\nP",r"P",tplData)
     tplData = re.sub(r"\nP\ns\_",r"\ns_",tplData)
@@ -527,10 +528,20 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\;\/1\n",r"\n",tplData)
     tplData = re.sub(r"\n\~\n",r"\n",tplData)
 
-    lineInformation = tplData.split('P')[1:-1]
+    tplData = re.sub(r"(\n){2,}",r"\n",tplData)
+
+    lineInformation = tplData.split('P')
+    if lineInformation[-1] != '' and lineInformation[-1] != '\n':
+        if lineInformation[0] == '' or lineInformation[0] == '\n':
+            lineInformation = lineInformation[1:]
+    else:
+        if lineInformation[0] == '' or lineInformation[0] == '\n':
+            lineInformation = lineInformation[1:-1]
+        else:
+            lineInformation = lineInformation[:-1]
 
     seen = {}
-    lineInformation = [[seen.setdefault(x, x) for x in page.split('\n')[1:-1] if x not in seen] for page in lineInformation]
+    lineInformation = [[seen.setdefault(x, x) for x in (page.split('\n')[1:-1] if page.split('\n')[-1] == '' else page.split('\n')[1:]) if x not in seen] for page in lineInformation]
 
     txt = open("debug.txt","w+",encoding="utf-8")
     txt.write(tplData)
