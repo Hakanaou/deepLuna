@@ -708,7 +708,7 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated):
             bytesNewPointers += bytes.fromhex(totalLenText)
         else:
             if line[2] != "TRANSLATION":
-                newText = add_linebreaks(line[2],55,True).split('#')
+                newText = add_linebreaks(line[2],55).split('#')
             else:
                 newText = line[1].split('#')
 
