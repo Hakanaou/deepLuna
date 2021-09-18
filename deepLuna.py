@@ -327,17 +327,18 @@ def update_database():
         script_jp = open("script_text.mrg","rb")
         dataScriptJP = script_jp.read()
 
-        os.chdir('update/')
+        # os.chdir('update/')
 
         print("Updating the main database...")
 
         newTable = mainTable
 
-        for filename in os.listdir(os.getcwd()):
-            if filename.split('.')[0] in namesScrTable:
-                newTable = txtfile_update_table(filename,scrTable,newTable,dataScriptJP)
-                os.remove(filename)
-                print(filename+" done")
+        traverse_updates("update", namesScrTable, scrTable, newTable, dataScriptJP)
+        # for filename in os.listdir(os.getcwd()):
+        #     if filename.split('.')[0] in namesScrTable:
+        #         newTable = txtfile_update_table(filename,scrTable,newTable,dataScriptJP)
+        #         os.remove(filename)
+        #         print(filename+" done")
 
         print("Updating done!")
         os.chdir(mainDir)
@@ -348,6 +349,17 @@ def update_database():
 
         return(newTable)
 
+def traverse_updates(path, namesScrTable, scrTable, newTable, dataScriptJP):
+    for root, dirs, files in os.walk(path):
+        for dir in dirs:
+            traverse_updates(os.path.join(root, dir), namesScrTable, scrTable, newTable, dataScriptJP)
+
+        for filename in files:
+            if filename.split('.')[0] in namesScrTable:
+                file_path = os.path.join(root, filename);
+                newTable = txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
+                os.remove(file_path)
+                print(file_path+" done")
 
 
 def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
@@ -362,7 +374,7 @@ def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
     cleanText = re.split(r"\n|\#",cleanText)
 
 
-    redName = dayFile.split('.')[0]
+    redName = os.path.basename(dayFile).split('.')[0]
 
     for day in table_scr:
         if day[0] == redName:
