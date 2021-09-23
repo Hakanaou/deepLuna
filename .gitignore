@@ -12,6 +12,8 @@ Thumbs.db
 ##############################
 *.mrg
 *.txt
+*.DAT
+*.bms
 
 # Configuration file #
 ######################
