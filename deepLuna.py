@@ -768,6 +768,110 @@ def names_organize(listNames):
 
     return([arcList,cielList,teachMeList,common])
 
+#Harphield extraction function for the UI .DAT file
+def extract_sysmes():
+    sysmes = open('SYSMES_TEXT.DAT', 'rb')
+
+    data = sysmes.read()
+
+    count_offset = '0x4'
+
+    int_pos = int(count_offset, 16)
+    string_count = int.from_bytes(data[int_pos:int_pos + 4], byteorder='little')
+
+    print('Found', string_count, 'strings')
+
+    header_offset = '0x18'
+
+    # first we read the header with the string offsets
+    positions = []
+    first_position = int(header_offset, 16)
+    i = first_position
+    while i < first_position + string_count * 8:
+        positions.append(int.from_bytes(data[i:i + 8], byteorder='little'))
+        i += 8
+
+    # then we read the strings on those positions
+
+    output = open('sysmes_text.txt', 'w+', encoding="utf-8")
+
+    for position in positions:
+        int_pos = position
+
+        values = []
+        texts = []
+
+        value = data[int_pos]
+
+        while value != 0:
+            values.append(value)
+            int_pos += 1
+            value = data[int_pos]
+
+        text = bytearray(values).decode('utf-8')
+        texts.append(text)
+        print(hex(position) + ': ' + text)
+        output.write(text + "\n")
+
+
+    sysmes.close()
+    output.close()
+
+#Harphield injection function for the UI .DAT file
+def rebuild_sysmes():
+    # the original sysmes here
+    sysmes = open('SYSMES_TEXT.DAT', 'rb')
+    old_data = sysmes.read()
+
+    # the translated texts here
+    translation = open('sysmes_text.txt', 'rb')
+    translations = translation.read().splitlines()
+
+    # output of new sysmes here
+    new_sysmes = open('SYSMES_TEXT_NEW.DAT', 'wb')
+
+    count_offset = '0x4'
+    int_pos = int(count_offset, 16)
+    string_count = int.from_bytes(old_data[int_pos:int_pos + 4], byteorder='little')
+
+    if len(translations) != string_count:
+        raise SystemExit('Wrong number of strings in translation file!')
+
+    header_offset = '0x18'
+    footer_offset = '0x184DA'
+    strings_offset = '0x2ED8'
+
+    # prepare header and footer
+    # we will prepend our new data with this
+    header_data = old_data[0:int(header_offset, 16)]
+    # we will append our new data with this
+    footer_data = old_data[int(footer_offset, 16):len(old_data)]
+
+    # write header
+    new_sysmes.write(header_data)
+    # write string positions
+    first_position = int(header_offset, 16)
+    pos = first_position
+    i = 0
+    strings_position = int(strings_offset, 16)
+    while pos < first_position + string_count * 8:
+        new_sysmes.write(strings_position.to_bytes(8, byteorder='little'))
+        pos += 8
+        strings_position += len(translations[i]) + 1    # +1 because there will be a 00 byte after each string
+        i += 1
+
+    # write strings
+    for t in translations:
+        new_sysmes.write(t)
+        new_sysmes.write(bytes([0x00]))
+
+    # write footer
+    new_sysmes.write(footer_data)
+
+    sysmes.close()
+    translation.close()
+    new_sysmes.close()
+
 
 ###GUI Interface
 
