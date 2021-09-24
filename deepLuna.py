@@ -543,7 +543,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"(\@k\@e)?\n\@x", r"_n\n", tplData)
     tplData = re.sub(r"\@k\@e\ns\_",r"\ns_",tplData)
     tplData = re.sub(r"\@k\@e",r"",tplData)
-    tplData = re.sub(r"\n\<[0-9]+?\>\_MSAD\(\_n\n", r"\n", tplData)
+    tplData = re.sub(r"\n\<[0-9]+?\>\_MSAD\(\_?n?\n", r"\n", tplData)
 
     # tplData = re.sub(r"\~\_PGST\((\-1|10000)\)\~\n",r"",tplData)
     # tplData = re.sub(r"\~\n{2,}",r"~\n",tplData)
