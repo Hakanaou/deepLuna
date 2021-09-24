@@ -513,9 +513,41 @@ def combine_elements_table(tab_new):
             tab_comb_new.append([tab_new[i][0],tab_new[i][1],tab_new[i][2],tab_new[i][3],tab_new[i][4],tab_new[i][5],[tab_new[i][6]],tab_new[i][7],tab_new[i][8]])
             i += 1
 
-
     return(tab_comb_new)
 
+def test_function(tplScript):
+    tpl = open(tplScript,"r+",encoding="utf-8")
+    tplData = tpl.read()
+    tplData = re.sub(r"\~\_(ZZ|ZY|W|R|S|F|G|V|C|T|M|N|A|J|I|X|E)[A-Za-z0-9\(\)\,\.\-\_\`\:\#\+]+?\~", r"",tplData)
+    tplData = re.sub(r"\~\_PGST\((\-1|10000)\)\~\n",r"",tplData)
+    tplData = re.sub(r"\~\n{2,}",r"~\n",tplData)
+    tplData = re.sub(r"\)\n{2,}",r")\n",tplData)
+    tplData = re.sub(r"\n\n\~",r"~",tplData)
+    tplData = re.sub(r"\n\~\~",r"",tplData)
+    tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
+    tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[cr1-9]*)*\$)|(\))", r"",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\@k\@e\)", r"", tplData)
+    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n2")
+    tplData = re.sub(r"\@x\@r", r"@x",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
+    tplData = re.sub(r"(P\n)+",r"P\n",tplData)
+    tplData = re.sub(r"P\nP",r"P",tplData)
+    tplData = re.sub(r"\nP\ns\_",r"\ns_",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
+    tplData = re.sub(r"\;\/1\n",r"\n",tplData)
+    tplData = re.sub(r"\n\~\n",r"\n",tplData)
+    tplData = re.sub(r"\<[0-9]+?\>\_ZM[0-9A-Za-z]+?\(\@x\$", r"@x",tplData)
+    tplData = re.sub(r"(\@k\@e)?\n\@x", r"_n\n", tplData)
+    tplData = re.sub(r"\@k\@e\ns\_",r"\ns_",tplData)
+    tplData = re.sub(r"\@k\@e",r"",tplData)
+    tplData = re.sub(r"\n\<[0-9]+?\>\_MSAD\(\_?n?\n", r"\n", tplData)
+    tplData = re.sub(r"(\n){2,}",r"\n",tplData)
+
+    txt = open("debug.txt","w+",encoding="utf-8")
+    txt.write(str(tplScript.split('.')[0])+"\n"+tplData)
+    #txt.write(tplData)
+    txt.close()
 
 def tplscript_to_txtfile(tplScript,niceText=False):
 
@@ -530,6 +562,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
     tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[cr1-9]*)*\$)|(\))", r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\@k\@e\)", r"", tplData)
+    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n2")
     tplData = re.sub(r"\@x\@r", r"@x",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
