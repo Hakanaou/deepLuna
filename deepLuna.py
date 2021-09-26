@@ -353,11 +353,12 @@ def traverse_updates(path, namesScrTable, scrTable, newTable, dataScriptJP):
     for root, dirs, files in os.walk(path):
         for dir in dirs:
             traverse_updates(os.path.join(root, dir), namesScrTable, scrTable, newTable, dataScriptJP)
+            shutil.rmtree(os.path.join(root, dir))
 
         for filename in files:
             if filename.split('.')[0] in namesScrTable:
                 file_path = os.path.join(root, filename)
-                newTable = txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
+                newTable = new_txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
                 os.remove(file_path)
                 print(file_path+" done")
 
@@ -372,7 +373,6 @@ def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
     cleanText = re.sub(r"C\:\>",r"",cleanText)
     cleanText = re.sub(r"C\:\>",r"",cleanText)
     cleanText = re.split(r"\n|\#",cleanText)
-
 
     redName = os.path.basename(dayFile).split('.')[0]
 
@@ -404,6 +404,69 @@ def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
     return(newMainTable)
 
     cleanTextFile.close()
+
+
+def new_txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
+
+    # Open scene file
+    with open(dayFile, "r+", encoding="utf-8") as cleanTextFile:
+        cleanText = cleanTextFile.read()
+
+    # We eliminate choices indication and split the text into pages (and since we start by page 1, we eliminate the first element of the list)
+    cleanText = re.sub(r"C\:\>",r"",cleanText)
+    cleanText = re.sub(r"C\:\>",r"",cleanText)
+    cleanText = re.split(r"\<Page[0-9 ]+\>",cleanText)[1:]
+
+    # We split the pages on newlines or special pound character, and remove the '' remaining after regex splitting with \n and pound
+    cleanText = [list(filter(lambda a: a != '', re.split(r"\n|\#",page))) for page in cleanText]
+
+    # Get name of the scene from its path
+    redName = os.path.basename(dayFile).split('.')[0]
+
+    # Search for the corresponding scene in the table_scr
+    for day in table_scr:
+        if day[0] == redName:
+            assoDay = day[1]
+            break
+
+    # Check whether we have the right number of pages in the scene
+    if len(assoDay) != len(cleanText):
+        raise SystemExit('Bad number of pages in %s.' %dayFile)
+    else:
+        # Initialisation of local variables
+        dayTable = []
+
+        # Creating new table variable where we'll put the new data and that we'll return to the caller
+        newMainTable = mainTable
+
+        # We run through the pages of the day
+        for i in range(len(assoDay)):
+
+            # We get special formating for the pages, converting the _n, _r_n or _s symbols to the corresponding elements of the general table (mainTable)
+            pageUpdated = page_to_SpeLineInfo(assoDay[i])
+            #counter = 0
+
+            #print(pageUpdated)
+
+            # If number of lines on the page doesn't correspond, raise an error
+            if len(pageUpdated) != len(cleanText[i]):
+                raise SystemExit('Bad number of lines in page %d of file %s.'  %(i+1,dayFile))
+            else:
+                #We run through the lines of the pages - if they are identical to the japanese, we change nothing, otherwise we add the translation
+                for l in range(len(pageUpdated)):
+                    extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
+                    extrLine[2] = extrLine[2] if cleanText[i][l] == extrLine[1] else cleanText[i][l]
+                    dayTable.append(extrLine)
+                    #counter += 1
+
+        # And we update the newMainTable
+        for i in  range(len(dayTable)):
+            for j in range(len(newMainTable)):
+                if dayTable[i][0] == newMainTable[j][0] and dayTable[i][2] != 'TRANSLATION':
+                    newMainTable[j][2] = dayTable[i][2]
+
+        return(newMainTable)
+
 
 
 
