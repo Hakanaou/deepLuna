@@ -356,7 +356,7 @@ def traverse_updates(path, namesScrTable, scrTable, newTable, dataScriptJP):
 
         for filename in files:
             if filename.split('.')[0] in namesScrTable:
-                file_path = os.path.join(root, filename);
+                file_path = os.path.join(root, filename)
                 newTable = txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
                 os.remove(file_path)
                 print(file_path+" done")
@@ -527,7 +527,7 @@ def test_function(tplScript):
     tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
     tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[cr1-9]*)*\$)|(\))", r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\@k\@e\)", r"", tplData)
-    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n2",tplData)
+    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n\2",tplData)
     tplData = re.sub(r"\@x\@r", r"@x",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
@@ -562,7 +562,7 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     tplData = re.sub(r"\~\_PGST\([0-9]+?\)\~",r"P",tplData)
     tplData = re.sub(r"(\<[0-9]+?\>\_(ZM[0-9A-Za-z]+?|MSAD)\((\@[cr1-9]*)*\$)|(\))", r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\@k\@e\)", r"", tplData)
-    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n2",tplData)
+    tplData = re.sub(r"([0-9]+)\_r\$([0-9]+\_?n?)", r"\1_r_n\n\2",tplData)
     tplData = re.sub(r"\@x\@r", r"@x",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_MSAD\(\n",r"",tplData)
     tplData = re.sub(r"\<[0-9]+?\>\_SELR\([0-9]+?\;\/\$",r"s_",tplData)
