@@ -444,9 +444,6 @@ def new_txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
 
             # We get special formating for the pages, converting the _n, _r_n or _s symbols to the corresponding elements of the general table (mainTable)
             pageUpdated = page_to_SpeLineInfo(assoDay[i])
-            #counter = 0
-
-            #print(pageUpdated)
 
             # If number of lines on the page doesn't correspond, raise an error
             if len(pageUpdated) != len(cleanText[i]):
@@ -457,7 +454,6 @@ def new_txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
                     extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
                     extrLine[2] = extrLine[2] if cleanText[i][l] == extrLine[1] else cleanText[i][l]
                     dayTable.append(extrLine)
-                    #counter += 1
 
         # And we update the newMainTable
         for i in  range(len(dayTable)):
