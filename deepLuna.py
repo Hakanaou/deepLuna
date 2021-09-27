@@ -1,39 +1,26 @@
-###Import packages
-try:
-    import tkinter as tk
-except ImportError or ModuleNotFoundError:
-    install("tkinter")
-    import tkinter as tk
+### Import packages
+import ast
+import contextlib
+import datetime
+import os
+import re
+import requests
+import shutil
+import time
+
+from PIL import ImageTk, Image
+from math import floor
+
+import tkinter as tk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 from tkinter.ttk import *
+
 import webbrowser
-try:
-    import subprocess
-except ImportError or ModuleNotFoundError:
-    install("subprocess")
-    import subprocess
-from math import floor
-import time
-try:
-    from PIL import ImageTk, Image
-except ImportError or ModuleNotFoundError:
-    install("Pillow")
-    from PIL import ImageTk, Image
-import random
-import sys
-import requests
-import json
-import time
-import datetime
-import ast
-import re
-import os
-import shutil
+
 from pathlib import Path
 
 from unpack_allsrc import *
 from prep_tpl import *
-
 
 ###Global variables and config.ini initialisation
 
@@ -1276,7 +1263,7 @@ class MainWindow:
         self.labels_txt_orig.grid(row=1,column=1)
 
         self.text_orig = tk.Text(self.frame_texte, width=60, height=10, borderwidth=5, highlightbackground="#A8A8A8")
-        self.text_orig.bind("<Key>", lambda e: self.ctrlEvent(e))
+        self.text_orig.config(state=tk.DISABLED)
         self.text_orig.grid(row=2,column=1)
 
         self.labels_txt_trad = tk.Label(self.frame_texte, text="Translated text:")
@@ -1319,6 +1306,13 @@ class MainWindow:
         self.show_text(None)
         self.load_percentage()
 
+    @contextlib.contextmanager
+    def editable_orig_text(self):
+        self.text_orig.config(state=tk.NORMAL)
+        try:
+            yield None
+        finally:
+            self.text_orig.config(state=tk.DISABLED)
 
     def load_percentage(self):
 
@@ -1547,8 +1541,9 @@ class MainWindow:
             table_day = gen_day_subtable(table_day_name,self.table_scr_file,self.table_file)
         if table_day != []:
             self.listbox_offsets.delete(0,tk.END)
-            self.text_orig.delete("1.0",tk.END)
-            self.text_trad.delete("1.0",tk.END)
+            with self.editable_orig_text():
+                self.text_orig.delete("1.0", tk.END)
+                self.text_trad.delete("1.0", tk.END)
             global n_trad_day
             n_trad_day = 0
             self.len_table_day = len(table_day)
@@ -1569,11 +1564,11 @@ class MainWindow:
             print("This day is empty.")
         print("Day loaded!")
 
-
     def open_table(self):
         self.listbox_offsets.delete(0,tk.END)
-        self.text_orig.delete("1.0",tk.END)
-        self.text_trad.delete("1.0",tk.END)
+        with self.editable_orig_text():
+            self.text_orig.delete("1.0", tk.END)
+            self.text_trad.delete("1.0", tk.END)
         self.csv = open('table.txt', "r+", encoding='utf-8')
         self.csv.close()
         global n_trad
@@ -1598,10 +1593,11 @@ class MainWindow:
             cs = (0,)
         else:
             for offset in cs:
-                self.text_orig.delete("1.0",tk.END)
-                self.text_trad.delete("1.0",tk.END)
-                self.text_orig.insert("1.0", table_day[offset][1])
-                self.text_trad.insert("1.0", table_day[offset][2])
+                with self.editable_orig_text():
+                    self.text_orig.delete("1.0", tk.END)
+                    self.text_trad.delete("1.0", tk.END)
+                    self.text_orig.insert("1.0", table_day[offset][1])
+                    self.text_trad.insert("1.0", table_day[offset][2])
 
 
     def ctrlEvent(self,event):
@@ -1810,10 +1806,11 @@ class MainWindow:
             self.listbox_offsets.see(self.pos_text)
             self.listbox_offsets.select_set(self.pos_text)
             self.listbox_offsets.activate(self.pos_text)
-            self.text_orig.delete("1.0",tk.END)
-            self.text_trad.delete("1.0",tk.END)
-            self.text_orig.insert("1.0", table_day[self.pos_text][1])
-            self.text_trad.insert("1.0", table_day[self.pos_text][2])
+            with self.editable_orig_text():
+                self.text_orig.delete("1.0", tk.END)
+                self.text_trad.delete("1.0", tk.END)
+                self.text_orig.insert("1.0", table_day[self.pos_text][1])
+                self.text_trad.insert("1.0", table_day[self.pos_text][2])
             posSearch = 0
 
         self.search_text()
@@ -1838,10 +1835,11 @@ class MainWindow:
         self.listbox_offsets.see(self.pos_text)
         self.listbox_offsets.select_set(self.pos_text)
         self.listbox_offsets.activate(self.pos_text)
-        self.text_orig.delete("1.0",tk.END)
-        self.text_trad.delete("1.0",tk.END)
-        self.text_orig.insert("1.0", table_day[self.pos_text][1])
-        self.text_trad.insert("1.0", table_day[self.pos_text][2])
+        with self.editable_orig_text():
+            self.text_orig.delete("1.0", tk.END)
+            self.text_trad.delete("1.0", tk.END)
+            self.text_orig.insert("1.0", table_day[self.pos_text][1])
+            self.text_trad.insert("1.0", table_day[self.pos_text][2])
 
         posSearch = 0
 
@@ -1879,10 +1877,11 @@ class MainWindow:
             self.listbox_offsets.see(self.pos_text)
             self.listbox_offsets.select_set(self.pos_text)
             self.listbox_offsets.activate(self.pos_text)
-            self.text_orig.delete("1.0",tk.END)
-            self.text_trad.delete("1.0",tk.END)
-            self.text_orig.insert("1.0", table_day[self.pos_text][1])
-            self.text_trad.insert("1.0", table_day[self.pos_text][2])
+            with self.editable_orig_text():
+                self.text_orig.delete("1.0", tk.END)
+                self.text_trad.delete("1.0", tk.END)
+                self.text_orig.insert("1.0", table_day[self.pos_text][1])
+                self.text_trad.insert("1.0", table_day[self.pos_text][2])
 
         if len(searchResults) == 0 or len(searchResults) == 1:
             self.prev_button.config(state=tk.DISABLED)
@@ -1907,10 +1906,11 @@ class MainWindow:
         self.listbox_offsets.see(self.pos_text)
         self.listbox_offsets.select_set(self.pos_text)
         self.listbox_offsets.activate(self.pos_text)
-        self.text_orig.delete("1.0",tk.END)
-        self.text_trad.delete("1.0",tk.END)
-        self.text_orig.insert("1.0", table_day[self.pos_text][1])
-        self.text_trad.insert("1.0", table_day[self.pos_text][2])
+        with self.editable_orig_text():
+            self.text_orig.delete("1.0", tk.END)
+            self.text_trad.delete("1.0", tk.END)
+            self.text_orig.insert("1.0", table_day[self.pos_text][1])
+            self.text_trad.insert("1.0", table_day[self.pos_text][2])
 
         if posSearch == len(searchResults)-1:
             self.next_button.config(state=tk.DISABLED)
@@ -1932,10 +1932,11 @@ class MainWindow:
         self.listbox_offsets.see(self.pos_text)
         self.listbox_offsets.select_set(self.pos_text)
         self.listbox_offsets.activate(self.pos_text)
-        self.text_orig.delete("1.0",tk.END)
-        self.text_trad.delete("1.0",tk.END)
-        self.text_orig.insert("1.0", table_day[self.pos_text][1])
-        self.text_trad.insert("1.0", table_day[self.pos_text][2])
+        with self.editable_orig_text():
+            self.text_orig.delete("1.0", tk.END)
+            self.text_trad.delete("1.0", tk.END)
+            self.text_orig.insert("1.0", table_day[self.pos_text][1])
+            self.text_trad.insert("1.0", table_day[self.pos_text][2])
 
         if posSearch == 0:
             self.prev_button.config(state=tk.DISABLED)
