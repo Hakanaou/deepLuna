@@ -47,6 +47,8 @@ if os.path.exists("config.ini"):
             translationLanguage = parameter[1]
         elif parameter[0] == "blockTranslation":
             blockTranslation = False if parameter[1] == '0' else True
+        elif parameter[0] == "swapText":
+            swapText = False if parameter[1] == '0' else ast.literal_eval(parameter[1])
         else:
             error += 1
     if error > 0 :
@@ -64,7 +66,9 @@ if os.path.exists("config.ini"):
         translationLanguage = 'EN'
         config.write("translationLanguage=EN\n")
         blockTranslation = False
-        config.write("blockTranslation=0")
+        config.write("blockTranslation=0\n")
+        swapText = False
+        config.write("swapText=0")
         config.close()
     else:
         config.close()
@@ -77,7 +81,9 @@ else:
     translationLanguage = 'EN'
     config.write("translationLanguage=EN\n")
     blockTranslation = False
-    config.write("blockTranslation=0")
+    config.write("blockTranslation=0\n")
+    swapText = False
+    config.write("swapText=0")
     config.close()
 
 
@@ -763,8 +769,19 @@ def read_table(tableName):
 
     return(data)
 
+def swap_characters_line(line,rep_list):
 
-def insert_translation(scriptFile,translatedText,scriptFileTranslated):
+    if rep_list:
+        #print(rep_list)
+        for rep in rep_list:
+            #print(rep)
+            line = re.sub(rep[0],rep[1],line)
+        return(line)
+    else:
+        return(line)
+
+
+def insert_translation(scriptFile,translatedText,scriptFileTranslated,swap=False):
 
     print("Starting script injection...")
 
@@ -796,14 +813,16 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated):
 
     for line in dataTLFile:
 
+        line[2] = line[2].split('//')[0]
+
         if type(line[0]) == str:
-            newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else (add_linebreaks(line[2],55).encode("utf-8") if line[6][0][:2] != 'QA' else line[2].encode("utf-8"))+b'\x0D\x0A'
+            newLine = swap_characters_line(line[1],swap).encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else (add_linebreaks(swap_characters_line(line[2],swap),55).encode("utf-8") if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).encode("utf-8"))+b'\x0D\x0A'
             bytesListTLText += newLine
             totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
             bytesNewPointers += bytes.fromhex(totalLenText)
         else:
             if line[2] != "TRANSLATION":
-                newText = add_linebreaks(line[2],55).split('#') if line[6][0][:2] != 'QA' else line[2].split('#')
+                newText = add_linebreaks(swap_characters_line(line[2],swap),55).split('#') if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).split('#')
             else:
                 newText = line[1].split('#')
 
@@ -1112,7 +1131,7 @@ class Informations:
         information.geometry("400x150")
         information.resizable(height=False, width=False)
 
-        self.nom = tk.Label(information, text ="deepLuna v2.3 — 2021/09/14\nDevelopped by Hakanaou\n", justify=tk.CENTER, borderwidth=10)
+        self.nom = tk.Label(information, text ="deepLuna v2.4 — 2021/09/14\nDevelopped by Hakanaou\n", justify=tk.CENTER, borderwidth=10)
         self.nom.pack()
 
         self.explanations = tk.Button(information, text="deepLuna GitHub", command=self.callback)
@@ -1130,6 +1149,7 @@ class MainWindow:
         global translationApi
         global translationLanguage
         global blockTranslation
+        global swapText
         global table_day
 
         self.dl_editor = dl_editor
@@ -1179,7 +1199,7 @@ class MainWindow:
 
         self.frame_tree = tk.Frame(self.frame_edition, borderwidth=20)
 
-        self.tree = Treeview(self.frame_tree, height = 18, style="smallFont.Treeview")
+        self.tree = Treeview(self.frame_tree, height = 22, style="smallFont.Treeview")
         self.tree.column('#0', anchor='w', width=260)
         self.tree.heading('#0', text='Game text', anchor='center')
 
@@ -1249,7 +1269,7 @@ class MainWindow:
         self.label_offsets = tk.Label(self.frame_choix, text="Original text offsets:")
         self.label_offsets.pack()
 
-        self.listbox_offsets = tk.Listbox(self.frame_choix, height=21, width=18, exportselection=False, selectmode=tk.EXTENDED)
+        self.listbox_offsets = tk.Listbox(self.frame_choix, height=26, width=18, exportselection=False, selectmode=tk.EXTENDED)
         self.listbox_offsets.bind('<Button-1>', self.show_text)
         self.listbox_offsets.bind('<Return>', self.show_text)
         self.listbox_offsets.pack(side = tk.LEFT, fill = tk.BOTH)
@@ -1276,6 +1296,12 @@ class MainWindow:
         self.text_trad = tk.Text(self.frame_texte, width=60, height=10, borderwidth=5, highlightbackground="#A8A8A8")
         self.text_trad.grid(row=4,column=1)
 
+        self.labels_txt_comment = tk.Label(self.frame_texte, text="Comments:")
+        self.labels_txt_comment.grid(row=5,column=1)
+
+        self.text_comment = tk.Text(self.frame_texte, width=60, height=2, borderwidth=5, highlightbackground="#A8A8A8")
+        self.text_comment.grid(row=6,column=1)
+
         self.frame_buttons = tk.Frame(self.frame_texte, borderwidth=10)
 
         self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.valider_ligne)
@@ -1299,7 +1325,20 @@ class MainWindow:
         self.button_export_all = tk.Button(self.frame_buttons, text="Export all", command=self.export_all_pages_window)
         self.button_export_all.grid(row=1, column=7,padx=2)
 
-        self.frame_buttons.grid(row=5,column=1)
+        self.frame_buttons.grid(row=7,column=1)
+
+        self.frame_options = tk.Frame(self.frame_texte, borderwidth=10)
+
+        self.text_swapText = tk.Label(self.frame_options, text="Swap text")
+        self.text_swapText.grid(row=0,column=0)
+
+        self.var_swapText = tk.BooleanVar()
+        self.var_swapText.set(False)
+
+        self.option_swapText = tk.Checkbutton(self.frame_options, variable=self.var_swapText, onvalue=True, offvalue=False)
+        self.option_swapText.grid(row=0,column=1)
+
+        self.frame_options.grid(row=8,column=1)
 
         self.frame_texte.pack(side=tk.LEFT)
 
@@ -1512,24 +1551,110 @@ class MainWindow:
 
         return(self.newMainTable)
 
-
     def function_insert_translation(self):
+
+        global swapText
+
+        if self.var_swapText.get():
+            if swapText:
+                self.enregistrer_fichier()
+                insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg",swapText)
+
+                self.warning = tk.Toplevel(self.dl_editor)
+                self.warning.title("deepLuna")
+                self.warning.resizable(height=False, width=False)
+                self.warning.attributes("-topmost", True)
+                self.warning.grab_set()
+
+                self.warning_message = tk.Label(self.warning, text="Text inserted successfully!")
+                self.warning_message.grid(row=0,column=0,pady=5)
+
+                self.warning_button = tk.Button(self.warning, text="Close", command = lambda : self.pushed(self.warning))
+                self.warning_button.grid(row=1,column=0,pady=10)
+
+            else:
+                self.swap_table_window()
+
+
+        else:
+            self.enregistrer_fichier()
+
+            insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg")
+
+            self.warning = tk.Toplevel(self.dl_editor)
+            self.warning.title("deepLuna")
+            self.warning.resizable(height=False, width=False)
+            self.warning.attributes("-topmost", True)
+            self.warning.grab_set()
+
+            self.warning_message = tk.Label(self.warning, text="Text inserted successfully!")
+            self.warning_message.grid(row=0,column=0,pady=5)
+
+            self.warning_button = tk.Button(self.warning, text="Close", command = lambda : self.pushed(self.warning))
+            self.warning_button.grid(row=1,column=0,pady=10)
+
+
+    def swap_table_window(self):
+
+        global swapText
+
+        self.swap_window = tk.Toplevel(self.dl_editor)
+        self.swap_window.resizable(height=False, width=False)
+        self.swap_window.title("deepLuna — Create swap table")
+        self.swap_window.grab_set()
+
+        self.label_swap = tk.Label(self.swap_window, text="Enter the character pairs to be swapped:")
+        self.label_swap.grid(row=0,column=0)
+
+        self.swap_text_zone = tk.Text(self.swap_window, width=20, height=25, borderwidth=5, highlightbackground="#A8A8A8")
+        self.swap_text_zone.grid(row=1,column=0)
+
+        self.swap_frame_buttons = tk.Frame(self.swap_window, borderwidth=10)
+
+        self.swap_ok_button = tk.Button(self.swap_frame_buttons, text="OK", command=self.get_swap_table)
+        self.swap_ok_button.grid(row=0,column=0)
+
+        self.swap_warning_button = tk.Button(self.swap_frame_buttons, text="Cancel", command = lambda : self.pushed(self.swap_window))
+        self.swap_warning_button.grid(row=0,column=1,pady=10)
+
+        self.swap_frame_buttons.grid(row=2,column=0)
+
+    def get_swap_table(self):
+
+        global swapText
 
         self.enregistrer_fichier()
 
-        insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg")
+        self.get_swap_text = self.swap_text_zone.get("1.0", tk.END)
+        if self.get_swap_text == '':
+            swapText = False
+        else:
+            #print(self.get_swap_text)
+            self.get_swap_text = self.get_swap_text.strip("\n")
+            #print(self.get_swap_text)
+            swapText = [pair.split(",") for pair in self.get_swap_text.split("\n")]
+            with open("config.ini", "r+", encoding="utf-8") as self.r_config:
+                self.data_config = self.r_config.read()
+            self.data_config = self.data_config.replace("swapText=0","swapText="+str(swapText))
+            with open("config.ini", "w+", encoding="utf-8") as self.w_config:
+                self.w_config.write(self.data_config)
 
-        self.warning = tk.Toplevel(self.dl_editor)
-        self.warning.title("deepLuna")
-        self.warning.resizable(height=False, width=False)
-        self.warning.attributes("-topmost", True)
-        self.warning.grab_set()
+            insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg",swapText)
 
-        self.warning_message = tk.Label(self.warning, text="Text inserted successfully!")
-        self.warning_message.grid(row=0,column=0,pady=5)
+            self.warning = tk.Toplevel(self.dl_editor)
+            self.warning.title("deepLuna")
+            self.warning.resizable(height=False, width=False)
+            self.warning.attributes("-topmost", True)
+            self.warning.grab_set()
 
-        self.warning_button = tk.Button(self.warning, text="Close", command = lambda : self.pushed(self.warning))
-        self.warning_button.grid(row=1,column=0,pady=10)
+            self.warning_message = tk.Label(self.warning, text="Text inserted successfully!")
+            self.warning_message.grid(row=0,column=0,pady=5)
+
+            self.warning_button = tk.Button(self.warning, text="Close", command = lambda : self.pushed(self.warning))
+            self.warning_button.grid(row=1,column=0,pady=10)
+
+        self.pushed(self.swap_window)
+
 
     def pushed(self,sub_win):
         sub_win.grab_release()
@@ -1600,8 +1725,11 @@ class MainWindow:
                 with self.editable_orig_text():
                     self.text_orig.delete("1.0", tk.END)
                     self.text_trad.delete("1.0", tk.END)
+                    self.text_comment.delete("1.0", tk.END)
                     self.text_orig.insert("1.0", table_day[offset][1])
-                    self.text_trad.insert("1.0", table_day[offset][2])
+                    self.text_trad.insert("1.0", table_day[offset][2].split('//')[0])
+                    if len(table_day[offset][2].split('//')) == 2:
+                        self.text_comment.insert("1.0", table_day[offset][2].split('//')[1])
 
 
     def ctrlEvent(self,event):
@@ -1621,11 +1749,16 @@ class MainWindow:
 
         cs=self.listbox_offsets.curselection()
 
-        self.line = self.text_trad.get("1.0", tk.END)
+        self.line = self.text_trad.get("1.0", tk.END).strip('\n')
+
+        self.comment = self.text_comment.get("1.0", tk.END).strip('\n')
+
+        if self.comment != '' and self.line != 'TRANSLATION':
+            self.line = self.line + '//' + self.comment
 
         #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
-        if self.line[-1] == "\n":
-            self.line = self.line[:-1]
+        #if self.line[-1] == "\n":
+        #    self.line = self.line[:-1]
 
         if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
             if type(table_day[cs[0]][0]) == str:
