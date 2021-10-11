@@ -151,37 +151,129 @@ def orders_line(string):
         return(splitStr)
 
 
-def add_linebreaks(line,length):
+def remove_ruby_text(line):
+    # Ruby text consists of <bottom|top> text.
+    # This function strips formatting characters and top text to get only
+    # the baseline-level characters in a sentence.
+    ret = ""
+    processing_ruby = False
+    seen_midline = False
 
-    if len(line) < length:
+    # Iterate each character in the line
+    for c in line:
+
+        # Is this the start of a ruby?
+        if c == '<':
+            # Sequential starts are likely an error in the input
+            assert not processing_ruby, "Repeated ruby-start encountered in line '%s'" % line
+
+            processing_ruby = True
+            seen_midline = False
+            continue
+
+        # Is this a ruby midline?
+        if c == '|':
+            assert processing_ruby, "Encountered ruby-delimiter in non-ruby text for line '%s'" % line
+            seen_midline = True
+            continue
+
+        # Is this a ruby end?
+        if c == '>':
+            assert processing_ruby, "Encountered ruby-end outside of ruby context for line '%s'" % line
+            assert seen_midline, "Encountered ruby-end without ruby-delimiter for line '%s'" % line
+            processing_ruby = False
+            seen_midline = True
+
+        # If this is a normal character, then append it to the output IFF
+        # - We are outside a ruby context _or_
+        # - We are indisde a ruby context but are before the midline
+        if not processing_ruby or not seen_midline:
+            ret = ret + c
+
+    return ret
+
+
+def noruby_len(line):
+    # Get the length of a line as if it did not contain any ruby text
+    try:
+        return len(remove_ruby_text(line))
+    except AssertionError as e:
+        # There are non-conformant lines in the current script. Fail gracefully
+        print(e)
+        return len(line)
+
+
+def ruby_aware_split_words(line):
+    # Split a line into words, but consider ruby groups to be a single word.
+    ret = []
+    acc = ""
+    processing_ruby = False
+    for c in line:
+        # Begin ruby group?
+        if c == '<':
+            assert not processing_ruby, "Encountered repeated ruby-start in line '%s'" % line
+            processing_ruby = True
+
+        # End ruby group?
+        if c == '>':
+            assert processing_ruby, "Encountered ruby-end without ruby-start in line '%s'" % line
+            processing_ruby = False
+
+        # If we see a space and are _not_ inside a ruby group, copy the
+        # accumulator to the output list and zero it out
+        if c == ' ' and not processing_ruby:
+            ret.append(acc)
+            acc = ""
+            continue
+
+        # If this is not a space, or is a space but we are inside a ruby group,
+        # append to current word accumulator.
+        acc = acc + c
+
+    # If the accumulator is non-empty, append to the return vector
+    if acc:
+        ret.append(acc)
+
+    return ret
+
+
+def add_linebreaks(line, length):
+    # If the line is already shorter than the desired length, just return
+    if noruby_len(line) < length:
         return(line)
-    else:
-        i = 0
-        splitLine = line.split(' ')
-        listPos = []
-        if length < max([len(elem) for elem in splitLine]):
-            return(line)
-        else:
-            while i < len(splitLine):
-                cumulLen = 0
-                while cumulLen <= length and i < len(splitLine):
-                    cumulLen += (len(splitLine[i])+1)
-                    if cumulLen <= length:
-                        i += 1
-                    elif cumulLen == length+1:
-                        i += 1
-                        listPos.append(i)
-                        break
-                    else:
-                        listPos.append(i)
-                        break
-            for i in range(len(listPos)):
-                splitLine.insert(listPos[i]+i,'\n')
-            returnLine = ' '.join(splitLine)
-            returnLine  = re.sub(r"( \n )|( \n)",r"\n",returnLine)
-            returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
-            return(returnLine)
 
+    # Split the line into a list of words, where ruby groups as a single word
+    splitLine = ruby_aware_split_words(line)
+
+    # If the length of the longest element in the line is larger than our
+    # allotted limit, we can't break this line
+    if length < max([noruby_len(elem) for elem in splitLine]):
+        return(line)
+
+    # Actually break the line.
+    i = 0
+    listPos = []
+    while i < len(splitLine):
+        cumulLen = 0
+        while cumulLen <= length and i < len(splitLine):
+            cumulLen += (noruby_len(splitLine[i])+1)
+            if cumulLen <= length:
+                i += 1
+            elif cumulLen == length+1:
+                i += 1
+                listPos.append(i)
+                break
+            else:
+                listPos.append(i)
+                break
+
+    for i in range(len(listPos)):
+        splitLine.insert(listPos[i]+i,'\n')
+
+    returnLine = ' '.join(splitLine)
+    returnLine  = re.sub(r"( \n )|( \n)",r"\n",returnLine)
+    returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
+    return(returnLine)
 
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
