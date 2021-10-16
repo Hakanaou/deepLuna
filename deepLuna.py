@@ -335,35 +335,39 @@ def export_all(scrTable,mainTable):
         print(day[0]+".txt exported")
     print("Exporting done!")
 
-def gen_day_subtable(dayName,scrTable,mainTable):
 
-    if dayName != "void":
-        for day in scrTable:
-            if day[0] == dayName:
-                scrInfoTable = day
-                break
-
-
-        subTable = []
-
-        for i in range(len(scrInfoTable[1])):
-
-            pageUpdated = page_to_SpeLineInfo(scrInfoTable[1][i])
-
-            for k in range(len(pageUpdated)):
-                for line in mainTable:
-                    if int(orders_line(scrInfoTable[1][i][k])[0])+1 == int(line[4]):
-                        subTable.append(line)
-
-        subTable = correct_day_subtable(subTable)
-
-    else:
+def gen_day_subtable(dayName, scrTable, mainTable):
+    if dayName == "void":
         subTable = []
         for line in mainTable:
             if len(line[6]) == 1 and line[6][0] == "void":
                 subTable.append(line)
+        return subTable
 
-    return(subTable)
+    # Find the matching scr table entry for this scene
+    scrInfoTable = scrTable.offsets_for_scene(dayName)
+
+    subTable = []
+
+    # For each page in this scene
+    for i in range(len(scrInfoTable[1])):
+        print(scrInfoTable[1][i])
+
+        # Convert each line reference on the page into a tuple encoding
+        # control codes
+        pageUpdated = page_to_SpeLineInfo(scrInfoTable[1][i])
+        print(pageUpdated)
+
+        # For each line on the page, iterate the entire main table(!)
+        # and check if the line in the table has the same text offset.
+        for k in range(len(pageUpdated)):
+            line_offset = int(orders_line(scrInfoTable[1][i][k])[0]) + 1
+            entry = mainTable.entry_for_text_offset(line_offset)
+            assert entry, "Failed to locate table entry for script offset '%s'" % line_offset
+            subTable.append(entry)
+
+    return correct_day_subtable(subTable)
+
 
 def correct_day_subtable(subTable):
     newSubTable = []
@@ -407,7 +411,7 @@ def update_database():
         return None
 
     # Create a new copy of the translation / script tables
-    translation_table = load_table("table.txt")
+    translation_table = TranslationTable("table.txt")
     scr_table = SceneTable("table_scr.txt")
 
     # Load the original jp script text mrg
@@ -422,9 +426,7 @@ def update_database():
     print("Updating done in %.1f seconds" % update_elapsed)
 
     # Write the updated table back to file
-    with open("table.txt", 'w+', encoding="utf-8") as modified_table:
-        modified_table.write('\n'.join([
-            str(elem) for elem in translation_table]))
+    translation_table.serialize_to_file("table.txt")
 
     return translation_table
 
@@ -614,15 +616,73 @@ class SceneTable:
         return self._scene_to_text_offsets.get(scene_name)
 
 
-def load_table(tableName):
-    file = open(tableName,"r+",encoding="utf-8")
-    data = file.read()
-    data = data.split('\n')
-    data = [ast.literal_eval(elem) for elem in data]
-    if len(data[0]) == 9:
-        data = [[elem[0],elem[1],elem[2],int(elem[3]),int(elem[4]),int(elem[5]),elem[6],int(elem[7]),int(elem[8])] for elem in data]
-    file.close()
-    return(data)
+class TranslationTableEntry:
+    # Translation table is serialized as a list of entries, where each
+    # entry consists of
+    # 0: Hex number (as a string) ?
+    # 1: Original Japanese text for line
+    # 2: Translated text for line
+    # 3: ?
+    # 4: Offset into the script_text.mrg string table for this line
+    #    (Note that this value is ONE-INDEXED)
+    # 5: ?
+    # 6: List of scene names in which this string appears (?)
+    # 7: ?
+    # 8: ?
+
+    def __init__(self, line):
+        assert len(line) == 9, "Badly formed translation table entry: '%s'" % line
+        self.field_0 = line[0]
+        self.jp_text = line[1]
+        self.translated_text = line[2]
+        self.field_3 = int(line[3])
+        self.string_offset = int(line[4])
+        self.field_5 = int(line[5])
+        self.scene_list = line[6]
+        self.field_7 = int(line[7])
+        self.field_8 = int(line[8])
+
+    def is_translated(self):
+        return self.translated_text != "TRANSLATION"
+
+
+class TranslationTable:
+    def __init__(self, filename):
+        # Open source file and split out each line
+        with open(filename, "r+", encoding="utf-8") as f:
+            data = f.read()
+
+        # Split data on newlines
+        lines = data.split('\n')
+
+        # Run each element in the table through literal_eval
+        # TODO(ross): Cursed
+        parsed_lines = [ast.literal_eval(elem) for elem in lines if elem]
+
+        # Wrap each string in a TTableEntry and store in a map indexed by
+        # text offset
+        self._strings_by_offset = {}
+        for line in parsed_lines:
+            wrapped = TranslationTableEntry(line)
+            self._strings_by_offset[wrapped.string_offset] = wrapped
+
+    def translated_percent(self):
+        total_entries = 0
+        translated_entries = 0
+        for entry in self._strings_by_offset.keys():
+            total_entries += 1
+            if entry.is_translated():
+                translated_entries += 1
+        return 100.0 * float(translated_entries) / float(total_entries)
+
+    def entry_for_text_offset(self, text_offset):
+        return self._strings_by_offset[text_offset]
+
+    def serialize_to_file(self, filename):
+        with open(filename, 'w+', encoding="utf-8") as f:
+            for offset in sorted(self._strings_by_offset.keys()):
+                f.write(str(self._strings_by_offset[offset]) + "\n")
+
 
 def complete_table(tab_new,tab_old):
     tab_new_hexa = [elem[0] for elem in tab_new]
@@ -1181,7 +1241,7 @@ class StartWindow:
         if os.path.exists("table.txt") and os.path.exists("table_scr.txt"):
             self.table_jp = update_database()
             print("Loading the database...")
-            self.table_scr = load_table("table_scr.txt")
+            self.table_scr = SceneTable("table_scr.txt")
             print("Loading done!")
             self.translation_window = tk.Toplevel(self.welcome)
 
@@ -1289,9 +1349,8 @@ class MainWindow:
         self.tree.column('#0', anchor='w', width=260)
         self.tree.heading('#0', text='Game text', anchor='center')
 
-        self.table_scr = load_table("table_scr.txt")
-
-        self.nameDaysList = [day[0] for day in self.table_scr]
+        self.table_scr = SceneTable("table_scr.txt")
+        self.nameDaysList = self.table_scr.scene_names()
 
         self.clusDayData = names_organize(self.nameDaysList)
 
@@ -1444,15 +1503,9 @@ class MainWindow:
             self.text_orig.config(state=tk.DISABLED)
 
     def load_percentage(self):
-
-        global n_trad
-        n_trad = 0
-        for i in range(len(self.table_file)):
-            if self.table_file[i][2] != "TRANSLATION":
-                n_trad = n_trad + 1
-
-        self.prct_trad.delete("1.0",tk.END)
-        self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
+        percent_translated = self.table_file.translated_percent()
+        self.prct_trad.delete("1.0", tk.END)
+        self.prct_trad.insert("1.0", "%.1f" % percent_translated)
 
     def closing_main_window(self):
 
