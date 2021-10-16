@@ -45,6 +45,20 @@ class TranslationTableEntry:
             f"is_choice={self.is_choice})"
         )
 
+    def serialize(self):
+        # Serialize using python literal format
+        return str([
+            self.jp_mrg_offset,
+            self.jp_text,
+            self.translated_text,
+            1 if self.has_ruby else 0,
+            self.string_offset,
+            self.page_number,
+            self.scene_list,
+            1 if self.is_glued else 0,
+            1 if self.is_choice else 0,
+        ])
+
 
 class MergedTranslationTableEntry:
     # Represents a collection of one or more raw string objects that are
@@ -138,10 +152,9 @@ class TranslationTable:
         return copy.deepcopy(self._strings_by_offset[text_offset])
 
     def serialize_to_file(self, filename):
-        return
         with open(filename, 'w+', encoding="utf-8") as f:
             for offset in sorted(self._strings_by_offset.keys()):
-                f.write(str(self._strings_by_offset[offset]) + "\n")
+                f.write(self._strings_by_offset[offset].serialize() + "\n")
 
     def apply_update(self, new_entry):
         assert isinstance(new_entry, MergedTranslationTableEntry)
