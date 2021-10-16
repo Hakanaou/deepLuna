@@ -452,7 +452,7 @@ def traverse_updates(path, scr_table, translation_table, jp_script_mrg):
             if file_scene in scr_table.scene_names():
                 # Ingest this file and mutate our translation table
                 file_path = os.path.join(root, filename)
-                translation_table = new_txtfile_update_table(
+                new_txtfile_update_table(
                     file_path, scr_table, translation_table, jp_script_mrg)
 
                 # Remove after processing
@@ -523,6 +523,12 @@ def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_m
             )
             dayTable.append(extrLine)
 
+    # For each loaded string, update the matching translation in our db
+    for import_entry in dayTable:
+        db_entry = translation_table.entry_for_text_offset(import_entry[4])
+        db_entry.translated_text = import_entry[2]
+        translation_table.apply_update(MergedTranslationTableEntry([db_entry]))
+
 
 def initial_full_extract():
 
@@ -586,7 +592,12 @@ def initial_full_extract():
 
     print("Initialisation finished!")
 
-    return([tableList,scrFullInfo])
+    # Lazy - reload the files from disk to get them in the new format
+    # instead of rewriting the import process right now
+    reloaded_translation_table = TranslationTable('table.txt')
+    reloaded_table_scr = SceneTable('table_scr.txt')
+
+    return([reloaded_translation_table, reloaded_table_scr])
 
 
 def complete_table(tab_new,tab_old):
@@ -768,10 +779,10 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     return([listText,scrInfo])
 
 
-def extract_text(scriptFile,outputFile):
+def extract_text(scriptFile, outputFile):
 
     script = open(scriptFile, 'rb')
-    extractedText = open(outputFile,'w+',encoding="utf-8")
+    extractedText = open(outputFile, 'w+', encoding="utf-8")
 
     data = script.read()
 
@@ -782,8 +793,6 @@ def extract_text(scriptFile,outputFile):
     nextPointerWord = b'\x00\x00\x00A'
     positionText =  offset
     positionPointer = '0x58'
-
-    furiganaFlag = 0
 
     while nextPointerWord != b'\xFF\xFF\xFF\xFF':
 
