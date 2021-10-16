@@ -468,7 +468,6 @@ def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_m
     # We eliminate choices indication and split the text into pages
     # And since we start by page 1, we eliminate the first element of the list
     cleanText = re.sub(r"C\:\>", r"", cleanText)
-    cleanText = re.sub(r"C\:\>", r"", cleanText)  # TODO(ross): dupe?
     cleanText = re.split(r"\<Page[0-9 ]+\>", cleanText)[1:]
 
     # We split the pages on newlines or special pound character, and remove
@@ -860,7 +859,7 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
 
     for offset in string_offsets:
         entry = translation_table.entry_for_text_offset(offset)
-        assert type(entry.field_0) == str
+        assert type(entry.jp_mrg_offset) == str
 
         # If this line isn't glued, reset any tracked cursor position
         # There exist some lines thare are 'dead', don't reset cursor pos

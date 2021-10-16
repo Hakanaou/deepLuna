@@ -18,7 +18,7 @@ class TranslationTableEntry:
 
     def __init__(self, line):
         assert len(line) == 9, "Bad translation table entry: '%s'" % line
-        self.field_0 = line[0]
+        self.jp_mrg_offset = line[0]
         self.jp_text = line[1]
         self.translated_text = line[2]
         self.has_ruby = True if int(line[3]) == 1 else False
