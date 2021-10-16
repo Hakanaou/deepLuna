@@ -2465,6 +2465,8 @@ class MainWindow:
                     self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
                     self.warning_button.grid(row=1,column=0,pady=10)
 
-root = tk.Tk()
-deepLuna = StartWindow(root)
-root.mainloop()
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    deepLuna = StartWindow(root)
+    root.mainloop()
