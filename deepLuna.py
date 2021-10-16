@@ -1,6 +1,7 @@
 ### Import packages
 import ast
 import contextlib
+import copy
 import datetime
 import functools
 import os
@@ -247,7 +248,7 @@ def ruby_aware_split_words(line):
     return ret
 
 
-def add_linebreaks(line, length):
+def add_linebreaks(line, length, start_cursor_pos=0):
     # If the line is already shorter than the desired length, just return
     if noruby_len(line) < length:
         return(line)
@@ -264,7 +265,10 @@ def add_linebreaks(line, length):
     i = 0
     listPos = []
     while i < len(splitLine):
-        cumulLen = 0
+        # Initialize the current length of the accumulated line
+        # in the event that we are working on a glued sentence
+        cumulLen = start_cursor_pos
+        start_cursor_pos = 0
         while cumulLen <= length and i < len(splitLine):
             cumulLen += (noruby_len(splitLine[i])+1)
             if cumulLen <= length:
@@ -278,12 +282,12 @@ def add_linebreaks(line, length):
                 break
 
     for i in range(len(listPos)):
-        splitLine.insert(listPos[i]+i,'\n')
+        splitLine.insert(listPos[i]+i, '\n')
 
     returnLine = ' '.join(splitLine)
-    returnLine  = re.sub(r"( \n )|( \n)",r"\n",returnLine)
+    returnLine = re.sub(r"( \n )|( \n)", r"\n", returnLine)
     returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
-    return(returnLine)
+    return returnLine
 
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
@@ -383,6 +387,7 @@ def correct_day_subtable(subTable):
     # Given a list of entries for a day, group entries that are conjoined.
     newSubTable = []
     i = 0
+    print("Subtable: %s" % subTable)
     while i < len(subTable):
         # If there is nothing weird about this line, just add it and continue
         if subTable[i].is_glued == 0:
@@ -829,57 +834,73 @@ def swap_characters_line(line,rep_list):
         return(line)
 
 
-def insert_translation(scriptFile,translatedText,scriptFileTranslated,swap=False):
+def insert_translation(scriptFile, translation_table_filename, scriptFileTranslated, swap=False):
 
     print("Starting script injection...")
 
     scriptJP = open(scriptFile, 'rb')
     scriptTL = open(scriptFileTranslated, 'wb')
-    translatedTextFile = open(translatedText, 'r', encoding="utf-8")
 
     dataJPFile = scriptJP.read()
 
-    dataTLFile = translatedTextFile.read()
-    dataTLFile = dataTLFile.split('\n')
-    dataTLFile = [ast.literal_eval(elem) for elem in dataTLFile]
+    # Read in the translation table again
+    translation_table = TranslationTable(translation_table_filename)
 
-    startJPFile = dataJPFile[0:int('58',16)]
-    endJPFile = dataJPFile[int('36B89F',16):]
+    startJPFile = dataJPFile[0:int('58', 16)]
+    endJPFile = dataJPFile[int('36B89F', 16):]
 
     bytesNewPointers = b'\x00\x00\x00\x00'
     totalLenText = '00000000'
     bytesListTLText = b''
 
-    dataTLFile = correct_day_subtable(dataTLFile)
+    # Track cursor position for breaking conjoined lines
+    cursor_position = 0
 
-    # for line in dataTLFile:
-    #
-    #     newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
-    #     bytesListTLText += newLine
-    #     totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-    #     bytesNewPointers += bytes.fromhex(totalLenText)
+    # Iterate the lines in the translation table, in order of their offset
+    string_offsets = sorted(translation_table.string_offsets())
 
-    for line in dataTLFile:
+    for offset in string_offsets:
+        entry = translation_table.entry_for_text_offset(offset)
+        assert type(entry.field_0) == str
 
-        line[2] = line[2].split('//')[0]
+        # If this line isn't glued, reset any tracked cursor position
+        # There exist some lines thare are 'dead', don't reset cursor pos
+        # when we see these
+        if not entry.is_glued and entry.is_translated():
+            cursor_position = 0
 
-        if type(line[0]) == str:
-            newLine = swap_characters_line(line[1],swap).encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else (add_linebreaks(swap_characters_line(line[2],swap),55).encode("utf-8") if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).encode("utf-8"))+b'\x0D\x0A'
-            bytesListTLText += newLine
-            totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-            bytesNewPointers += bytes.fromhex(totalLenText)
-        else:
-            if line[2] != "TRANSLATION":
-                newText = add_linebreaks(swap_characters_line(line[2],swap),55).split('#') if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).split('#')
-            else:
-                newText = line[1].split('#')
+        line_to_inject = None
+        if not entry.is_translated():
+            # For untranslated strings, put the original JP text back in
+            charswapped_line = swap_characters_line(entry.jp_text, swap)
+            line_to_inject = charswapped_line.encode("utf-8") + b'\x0D\x0A'
+        elif entry.scene_list[0][:2] == 'QA':
+            # If this is a Ciel Sensei segment, we don't add a finale \r\n
+            line_to_inject = add_linebreaks(
+                swap_characters_line(entry.translated_text, swap),
+                55,
+                start_cursor_pos=cursor_position
+            ).encode("utf-8")
+        else:  # Normal case
+            # Replace any custom character sets
+            charswapped_line = \
+                    swap_characters_line(entry.translated_text, swap)
 
-            for i in range(len(newText)):
-                newLine = newText[i].encode("utf-8")+b'\x0D\x0A'
-                #print(newLine)
-                bytesListTLText += newLine
-                totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-                bytesNewPointers += bytes.fromhex(totalLenText)
+            # Insert linebreaks
+            broken_line = add_linebreaks(
+                charswapped_line, 55, start_cursor_pos=cursor_position)
+
+            # Update cursor position with the length of the final line
+            cursor_position = len(broken_line.split('\n')[-1])
+
+            # Encode and add trailing \r\n\
+            line_to_inject = broken_line.encode("utf-8") + b'\x0D\x0A'
+
+        # Encode this line into our text data and add an offset indirection
+        bytesListTLText += line_to_inject
+        totalLenText = add_zeros(
+            hexsum(totalLenText, hex(len(line_to_inject)))[2:])
+        bytesNewPointers += bytes.fromhex(totalLenText)
 
     bytesListTLText = bytesListTLText[:-2]
     bytesNewPointers = bytesNewPointers[:-4] + bytesNewPointers[-8:-4] + 12*b'\xFF'
@@ -890,7 +911,6 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated,swap=False
 
     scriptJP.close()
     scriptTL.close()
-    translatedTextFile.close()
 
     print("Script injection done!")
 
@@ -1568,30 +1588,6 @@ class MainWindow:
                 self.open_day("void")
                 root.update()
 
-
-    def split_gather_line(self,line):
-        if type(line[0]) == list:
-            self.linesList = []
-            for self.i in range(len(line[0])):
-                self.linesList.append([line[0][i],line[1].split('#')[i],line[2].split('#')[i],line[3],line[4][i],line[5],line[6],line[7],line[8]])
-        else:
-            self.linesList = [list]
-        return(self.linesList)
-
-    def reinsert_daytable(self,dayTable,mainTable):
-
-        self.newMainTable = mainTable
-        self.splitDayTable = []
-        for self.i in range(len(dayTable)):
-            self.splitDayTable += self.split_gather_line(dayTable[self.i])
-
-        for self.i in  range(len(self.splitDayTable)):
-            for self.j in range(len(self.newMainTable)):
-                if self.splitDayTable[self.i][0] == self.newMainTable[self.j][0] and self.splitDayTable[self.i][2] != 'TRANSLATION':
-                    self.newMainTable[self.j][2] = self.splitDayTable[self.i][2]
-
-        return(self.newMainTable)
-
     def function_insert_translation(self):
 
         global swapText
@@ -1849,20 +1845,13 @@ class MainWindow:
 
 
     def enregistrer_fichier(self):
-
         global search_window_open
         global posSearch
         global searchResults
         global table_day
 
         print("Saving file, please wait...")
-
-        self.table_file = self.reinsert_daytable(self.table_scr_file,self.table_file)
-
-        tableFile = open("table.txt","w",encoding="utf-8")
-        tableFile.write("\n".join([str(elem) for elem in self.table_file]))
-        tableFile.close()
-
+        self.table_file.serialize_to_file("table.txt")
         print("Database saved!")
 
     def search_text_window(self):
@@ -2138,7 +2127,17 @@ class MainWindow:
         self.graph_advanced_options = tk.Checkbutton(self.set_translation_frame, variable=self.var_block_tl, onvalue=True, offvalue=False)
         self.graph_advanced_options.grid(row=2,column=1)
 
-        self.message = tk.Label(self.set_translation_frame, text="Translate starting from the line "+str(table_day[cs[0]][4])+" until line "+str(table_day[cs[-1]][4])+"?" if len(cs)>1 else "Translate the line "+str(table_day[cs[0]][4])+"?")
+        self.message = tk.Label(
+            self.set_translation_frame,
+            text=(
+                "Translate starting from the line " +
+                str(table_day[cs[0]].string_offset) + " until line " +
+                str(table_day[cs[-1]].string_offset) + "?"
+                if len(cs) > 1
+                else "Translate the line " +
+                str(table_day[cs[0]].string_offset) + "?"
+            )
+        )
         self.message.grid(row=3,column=0,pady=10)
 
         self.launch_butten = tk.Button(self.set_translation_frame, text="OK", command = self.translate_game)
