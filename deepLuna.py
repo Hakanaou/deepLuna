@@ -401,158 +401,122 @@ def correct_day_subtable(subTable):
 
 
 def update_database():
+    # If there is nothing to update, return None
+    UPDATE_PATH = "update"
+    if not os.path.exists(UPDATE_PATH):
+        return None
 
-    if os.path.exists("update"):
+    # Create a new copy of the translation / script tables
+    translation_table = load_table("table.txt")
+    scr_table = SceneTable("table_scr.txt")
 
-        mainDir = os.getcwd()
+    # Load the original jp script text mrg
+    jp_script_mrg = None
+    with open("script_text.mrg", "rb") as script_jp:
+        jp_script_mrg = script_jp.read()
 
-        mainTable = load_table("table.txt")
-        scrTable = load_table("table_scr.txt")
-        namesScrTable = [elem[0] for elem in scrTable]
-        script_jp = open("script_text.mrg","rb")
-        dataScriptJP = script_jp.read()
+    print("Updating the main database...")
+    update_start = time.monotonic()
+    traverse_updates(UPDATE_PATH, scr_table, translation_table, jp_script_mrg)
+    update_elapsed = time.monotonic() - update_start
+    print("Updating done in %.1f seconds" % update_elapsed)
 
-        # os.chdir('update/')
+    # Write the updated table back to file
+    with open("table.txt", 'w+', encoding="utf-8") as modified_table:
+        modified_table.write('\n'.join([
+            str(elem) for elem in translation_table]))
 
-        print("Updating the main database...")
+    return translation_table
 
-        newTable = mainTable
 
-        traverse_updates("update", namesScrTable, scrTable, newTable, dataScriptJP)
-        # for filename in os.listdir(os.getcwd()):
-        #     if filename.split('.')[0] in namesScrTable:
-        #         newTable = txtfile_update_table(filename,scrTable,newTable,dataScriptJP)
-        #         os.remove(filename)
-        #         print(filename+" done")
-
-        print("Updating done!")
-        os.chdir(mainDir)
-
-        modTable = open("table.txt",'w+',encoding="utf-8")
-        modTable.write('\n'.join([str(elem) for elem in newTable]))
-        modTable.close()
-
-        return(newTable)
-
-def traverse_updates(path, namesScrTable, scrTable, newTable, dataScriptJP):
+def traverse_updates(path, scr_table, translation_table, jp_script_mrg):
     for root, dirs, files in os.walk(path):
-        for dir in dirs:
-            traverse_updates(os.path.join(root, dir), namesScrTable, scrTable, newTable, dataScriptJP)
-            shutil.rmtree(os.path.join(root, dir))
+        for directory in dirs:
+            # Recurse into subdirectories
+            traverse_updates(
+                os.path.join(root, directory), scr_table,
+                translation_table, jp_script_mrg)
+
+            # Remove directories after processing
+            shutil.rmtree(os.path.join(root, directory))
 
         for filename in files:
-            if filename.split('.')[0] in namesScrTable:
+            # Does this file map to a known scene?
+            file_scene = filename.split('.')[0]
+            if file_scene in scr_table.scene_names():
+                # Ingest this file and mutate our translation table
                 file_path = os.path.join(root, filename)
-                newTable = new_txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
+                translation_table = new_txtfile_update_table(
+                    file_path, scr_table, translation_table, jp_script_mrg)
+
+                # Remove after processing
                 os.remove(file_path)
-                print(file_path+" done")
+                print("Imported changes from '%s'" % file_path)
 
 
-def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
-
-    cleanTextFile = open(dayFile, "r+", encoding="utf-8")
-    cleanText = cleanTextFile.read()
-
-    cleanText = re.sub(r"\n\<Page[0-9]+\>\n",r"\n",cleanText)
-    cleanText = re.sub(r"\<Page[0-9]+\>\n",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.split(r"\n|\#",cleanText)
-
-    redName = os.path.basename(dayFile).split('.')[0]
-
-    for day in table_scr:
-        if day[0] == redName:
-            assoDay = day[1]
-            break
-
-    dayTable = []
-    counter = 0
-
-    newMainTable = mainTable
-
-    for i in range(len(assoDay)):
-
-        pageUpdated = page_to_SpeLineInfo(assoDay[i])
-
-        for l in range(len(pageUpdated)):
-            extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
-            extrLine[2] = extrLine[2] if cleanText[counter] == extrLine[1] else cleanText[counter]
-            dayTable.append(extrLine)
-            counter += 1
-
-    for i in  range(len(dayTable)):
-        for j in range(len(newMainTable)):
-            if dayTable[i][0] == newMainTable[j][0] and dayTable[i][2] != 'TRANSLATION':
-                newMainTable[j][2] = dayTable[i][2]
-
-    return(newMainTable)
-
-    cleanTextFile.close()
-
-
-def new_txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
-
+def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_mrg):
     # Open scene file
-    with open(dayFile, "r+", encoding="utf-8") as cleanTextFile:
+    with open(filename, "r+", encoding="utf-8") as cleanTextFile:
         cleanText = cleanTextFile.read()
 
-    # We eliminate choices indication and split the text into pages (and since we start by page 1, we eliminate the first element of the list)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.split(r"\<Page[0-9 ]+\>",cleanText)[1:]
+    # We eliminate choices indication and split the text into pages
+    # And since we start by page 1, we eliminate the first element of the list
+    cleanText = re.sub(r"C\:\>", r"", cleanText)
+    cleanText = re.sub(r"C\:\>", r"", cleanText)  # TODO(ross): dupe?
+    cleanText = re.split(r"\<Page[0-9 ]+\>", cleanText)[1:]
 
-    # We split the pages on newlines or special pound character, and remove the '' remaining after regex splitting with \n and pound
-    cleanText = [list(filter(lambda a: a != '', re.split(r"\n|\#",page))) for page in cleanText]
+    # We split the pages on newlines or special pound character, and remove
+    # the '' remaining after regex splitting with \n and pound
+    cleanText = [
+        [line for line in re.split(r"\n|\#", page) if line]
+        for page in cleanText
+    ]
 
     # Get name of the scene from its path
-    redName = os.path.basename(dayFile).split('.')[0]
+    scene_name = os.path.basename(filename).split('.')[0]
 
-    # Search for the corresponding scene in the table_scr
-    for day in table_scr:
-        if day[0] == redName:
-            assoDay = day[1]
-            break
+    # Retrieve the offset list from the scr_table
+    scene_offsets = scr_table.offsets_for_scene(scene_name)
 
     # Check whether we have the right number of pages in the scene
-    if len(assoDay) != len(cleanText):
-        print('Bad number of pages in %s.' %dayFile)
-        return mainTable;
-        # raise SystemExit('Bad number of pages in %s.' %dayFile)
-    else:
-        # Initialisation of local variables
-        dayTable = []
+    if len(scene_offsets) != len(cleanText):
+        print("Bad number of pages in '%s'" % filename)
+        return translation_table
 
-        # Creating new table variable where we'll put the new data and that we'll return to the caller
-        newMainTable = mainTable
+    # Initialisation of local variables
+    dayTable = []
 
-        # We run through the pages of the day
-        for i in range(len(assoDay)):
+    # We run through the pages of the day
+    for i in range(len(scene_offsets)):
 
-            # We get special formating for the pages, converting the _n, _r_n or _s symbols to the corresponding elements of the general table (mainTable)
-            pageUpdated = page_to_SpeLineInfo(assoDay[i])
+        # We get special formating for the pages, converting the
+        # _n, _r_n or _s symbols to the corresponding elements of the
+        # general table (translation_table)
+        pageUpdated = page_to_SpeLineInfo(scene_offsets[i])
 
-            # If number of lines on the page doesn't correspond, raise an error
-            if len(pageUpdated) != len(cleanText[i]):
-                print('Bad number of lines in page %d of file %s.'  %(i+1,dayFile))
-                return mainTable;
-                # raise SystemExit('Bad number of lines in page %d of file %s.'  %(i+1,dayFile))
-            else:
-                #We run through the lines of the pages - if they are identical to the japanese, we change nothing, otherwise we add the translation
-                for l in range(len(pageUpdated)):
-                    extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
-                    extrLine[2] = extrLine[2] if cleanText[i][l] == extrLine[1] else cleanText[i][l]
-                    dayTable.append(extrLine)
+        # If number of lines on the page doesn't correspond, raise an error
+        if len(pageUpdated) != len(cleanText[i]):
+            print('Bad number of lines in %s page %d.' % (filename, i + 1))
+            return translation_table
 
-        # And we update the newMainTable
-        for i in  range(len(dayTable)):
-            for j in range(len(newMainTable)):
-                if dayTable[i][0] == newMainTable[j][0] and dayTable[i][2] != 'TRANSLATION':
-                    newMainTable[j][2] = dayTable[i][2]
+        # We run through the lines of the pages - if they are identical to the
+        # japanese, we change nothing, otherwise we add the translation
+        for line in range(len(pageUpdated)):
+            extrLine = extract_by_line(
+                jp_script_mrg,
+                int(pageUpdated[line][0]) + 1,
+                i + 1,
+                scene_name,
+                pageUpdated[line][1],
+                pageUpdated[line][2]
+            )
 
-        return(newMainTable)
-
-
+            extrLine[2] = (
+                extrLine[2]
+                if cleanText[i][line] == extrLine[1]
+                else cleanText[i][line]
+            )
+            dayTable.append(extrLine)
 
 
 def initial_full_extract():
@@ -618,6 +582,36 @@ def initial_full_extract():
     print("Initialisation finished!")
 
     return([tableList,scrFullInfo])
+
+
+class SceneTable:
+    # Scene table consists of a list of 2-element lists, ehere the first
+    # element is the scene name (e.g. '01_00_ARC01_4_1') and the second element
+    # is a list of text offsets that occur in that file. The text offets also
+    # contain some format modifiers from the script
+    def __init__(self, filename):
+        # Open source file and split out each line
+        with open(filename, "r+", encoding="utf-8") as f:
+            data = f.read()
+
+        # Split data on newlines
+        lines = data.split('\n')
+
+        # Run each element in the table through literal_eval
+        # TODO(ross): I am screaming
+        parsed_lines = [ast.literal_eval(elem) for elem in lines]
+
+        # Convert the data into a map keyed off of scene name
+        self._scene_to_text_offsets = {}
+        for row in parsed_lines:
+            assert len(row) == 2, "Invalid scene table entry '%s'" % row
+            self._scene_to_text_offsets[row[0]] = row[1]
+
+    def scene_names(self):
+        return self._scene_to_text_offsets.keys()
+
+    def offsets_for_scene(self, scene_name):
+        return self._scene_to_text_offsets.get(scene_name)
 
 
 def load_table(tableName):
