@@ -121,6 +121,9 @@ class TranslationTable:
             wrapped = TranslationTableEntry(line)
             self._strings_by_offset[wrapped.string_offset] = wrapped
 
+    def string_offsets(self):
+        return self._strings_by_offset.keys()
+
     def translated_percent(self):
         total_entries = 0
         translated_entries = 0
@@ -146,8 +149,5 @@ class TranslationTable:
         # For each sub-entry in this merged entry, overwrite our local
         # data with a copy
         for sub_entry in new_entry._sub_entries:
-            print("Overwrite %s with %s" % (
-                self._strings_by_offset[sub_entry.string_offset],
-                sub_entry))
             self._strings_by_offset[sub_entry.string_offset] = \
                 copy.deepcopy(sub_entry)

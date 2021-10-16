@@ -31,3 +31,6 @@ class SceneTable:
 
     def offsets_for_scene(self, scene_name):
         return self._scene_to_text_offsets.get(scene_name)
+
+    def all_scenes(self):
+        return self._scene_to_text_offsets.values()

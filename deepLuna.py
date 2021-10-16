@@ -301,27 +301,27 @@ def export_day(dayName,scrTable,mainTable):
         os.mkdir('export')
         os.chdir('export/')
 
+    # Get the list of text offsets for this scene
+    offset_list = scrTable.offsets_for_scene(dayName)
 
-    for day in scrTable:
-        if day[0] == dayName:
-            scrInfoTable = day
-            break
-
-    day_export = open(scrInfoTable[0]+".txt","w+",encoding = "utf-8")
+    # Open the output file
+    day_export = open(dayName+".txt", "w+", encoding="utf-8")
 
     dayStr = ''
 
-    for i in range(len(scrInfoTable[1])):
-
+    for i in range(len(offset_list)):
         dayStr += ('<Page'+str(i+1)+'>\n')
-        pageUpdated = page_to_SpeLineInfo(scrInfoTable[1][i])
+        pageUpdated = page_to_SpeLineInfo(offset_list[i])
 
         for k in range(len(pageUpdated)):
 
-            for line in mainTable:
-                if int(orders_line(scrInfoTable[1][i][k])[0])+1 == int(line[4]):
-                    extrLine = line[1] if line[2] == 'TRANSLATION' else line[2]
-                    break
+            line_offset = int(orders_line(offset_list[i][k])[0]) + 1
+            entry = mainTable.entry_for_text_offset(line_offset)
+            extrLine = (
+                entry.translated_text
+                if entry.is_translated()
+                else entry.jp_text
+            )
 
             if pageUpdated[k][1] == 1:
                 if k == len(pageUpdated)-1:
@@ -341,11 +341,11 @@ def export_day(dayName,scrTable,mainTable):
     os.chdir(mainDir)
 
 
-def export_all(scrTable,mainTable):
+def export_all(scrTable, mainTable):
 
     print("Exporting whole database:")
     for day in scrTable:
-        export_day(day[0],scrTable,mainTable)
+        export_day(day[0], scrTable, mainTable)
         print(day[0]+".txt exported")
     print("Exporting done!")
 
@@ -387,7 +387,6 @@ def correct_day_subtable(subTable):
     # Given a list of entries for a day, group entries that are conjoined.
     newSubTable = []
     i = 0
-    print("Subtable: %s" % subTable)
     while i < len(subTable):
         # If there is nothing weird about this line, just add it and continue
         if subTable[i].is_glued == 0:
@@ -1470,15 +1469,15 @@ class MainWindow:
         global table_day
 
         if table_day != []:
-            if table_day[0][6][0] != 'void':
-                export_day(table_day[0][6][0],self.table_scr_file,self.table_file)
+            if table_day[0].scene_list[0] != 'void':
+                export_day(table_day[0].scene_list[0],self.table_scr_file,self.table_file)
                 self.warning = tk.Toplevel(self.dl_editor)
                 self.warning.title("deepLuna")
                 self.warning.resizable(height=False, width=False)
                 self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
-                self.warning_message = tk.Label(self.warning, text="Scene "+table_day[0][6][0]+" exported successfully!")
+                self.warning_message = tk.Label(self.warning, text="Scene "+table_day[0].scene_list[0]+" exported successfully!")
                 self.warning_message.grid(row=0,column=0,pady=5)
 
                 self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
