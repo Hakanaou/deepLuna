@@ -2,6 +2,7 @@
 import ast
 import contextlib
 import datetime
+import functools
 import os
 import re
 import requests
@@ -40,6 +41,8 @@ n_trad_day = 0
 table_day = []
 
 #dayInfoTable
+
+TRANSLATION_PLACEHOLDER = 'TRANSLATION'
 
 if os.path.exists("config.ini"):
     config = open("config.ini","r+",encoding="utf-8")
@@ -382,7 +385,7 @@ def correct_day_subtable(subTable):
     i = 0
     while i < len(subTable):
         # If there is nothing weird about this line, just add it and continue
-        if subTable[i].field_7 == 0:
+        if subTable[i].is_glued == 0:
             newSubTable.append(MergedTranslationTableEntry([subTable[i]]))
             i += 1
             continue
@@ -391,7 +394,7 @@ def correct_day_subtable(subTable):
         # with the flag set
         j = i
         acc = []
-        while j < len(subTable) and subTable[j].field_7 == 1:
+        while j < len(subTable) and subTable[j].is_glued == 1:
             acc.append(subTable[j])
             j += 1
         newSubTable.append(MergedTranslationTableEntry(acc))
@@ -1348,7 +1351,7 @@ class MainWindow:
 
         self.frame_buttons = tk.Frame(self.frame_texte, borderwidth=10)
 
-        self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.valider_ligne)
+        self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.validate_line)
         self.button_save_line.grid(row=1, column=1,padx=2)
 
         self.button_save_file = tk.Button(self.frame_buttons, text="Save", command=self.enregistrer_fichier)
@@ -1718,8 +1721,8 @@ class MainWindow:
                 self.listbox_offsets.insert(
                     self.i,
                     self.align_page(
-                        str(table_day[self.i].field_5),
-                        len(str(table_day[-1].field_5))
+                        str(table_day[self.i].page_number),
+                        len(str(table_day[-1].page_number))
                     ) + " : " + table_day[self.i].offset_label()
                 )
 
@@ -1781,7 +1784,7 @@ class MainWindow:
         else:
             return "break"
 
-    def valider_ligne(self):
+    def validate_line(self):
 
         global search_window_open
         global posSearch
@@ -1790,91 +1793,54 @@ class MainWindow:
         global n_trad_day
         global table_day
 
-        cs = self.listbox_offsets.curselection()
+        # Load the entry that we are validating
+        entry_offset = self.listbox_offsets.curselection()[0]
+        entry = table_day[entry_offset]
 
+        # Load input translation text / comment from UI
         self.line = self.text_trad.get("1.0", tk.END).strip('\n')
-
         self.comment = self.text_comment.get("1.0", tk.END).strip('\n')
 
-        if self.comment != '' and self.line != 'TRANSLATION':
+        # If the translation and comment are valid, conjoin them
+        if self.comment and self.line != TRANSLATION_PLACEHOLDER:
             self.line = self.line + '//' + self.comment
 
-        #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
-        #if self.line[-1] == "\n":
-        #    self.line = self.line[:-1]
+        # If the translation input is the raw 'TRANSLATION' placeholder,
+        # _clear_ the translation on this entry
+        if self.line == TRANSLATION_PLACEHOLDER:
+            entry.clear_translation()
+            # Clear highlight for line
+            self.listbox_offsets.itemconfig(entry_offset, bg='#FFFFFF')
+        else:
+            # If the input translation text valid, check if it fits
+            split_line = self.line.split('#')
 
-        if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                self.line = self.line.split('#')
+            # If the numbers are wrong, highlight red and crash operation
+            if len(entry.offset_list) != len(split_line):
+                self.listbox_offsets.itemconfig(entry_offset, bg='#ECBDBC')
+                assert False, "Line count mismatch - expected %d, got %d" % (
+                    len(entry.offset_list), len(split_line))
 
-                if len(self.line) > len(table_day[cs[0]][0]):
-                    self.line = self.line[:len(table_day[cs[0]][0])]
-                    table_day[cs[0]][2] = '#'.join(self.line)
-                else:
-                    if len(self.line) < len(table_day[cs[0]][0]):
-                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
-                            self.line.append("ERROR")
-                        table_day[cs[0]][2] = '#'.join(self.line)
+            # Apply the translation string to the merged entry
+            entry.set_translation(split_line)
 
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.listbox_offsets.itemconfig(cs[0], bg='#BCECC8') #green for translated and inserted
-            n_trad = n_trad + 1
-            n_trad_day = n_trad_day + 1
-            self.prct_trad.delete("1.0",tk.END)
-            self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-            self.prct_trad_day.delete("1.0",tk.END)
-            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        elif table_day[cs[0]][2] != "TRANSLATION" and self.line == 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                #self.line = self.line.split('#')
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],"TRANSLATION",self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.listbox_offsets.itemconfig(cs[0], bg='#FFFFFF')
-            if n_trad > 0:
-                n_trad = n_trad - 1
-                n_trad_day = n_trad_day - 1
-                self.prct_trad.delete("1.0",tk.END)
-                self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-                self.prct_trad_day.delete("1.0",tk.END)
-                self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        elif table_day[cs[0]][2] != "TRANSLATION" and self.line != 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                self.line = self.line.split('#')
+            # Mark this entry as green
+            self.listbox_offsets.itemconfig(entry_offset, bg='#BCECC8')
 
-                if len(self.line) > len(table_day[cs[0]][0]):
-                    self.line = self.line[:len(table_day[cs[0]][0])]
-                    table_day[cs[0]][2] = '#'.join(self.line)
-                else:
-                    if len(self.line) < len(table_day[cs[0]][0]):
-                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
-                            self.line.append("ERROR")
-                        table_day[cs[0]][2] = '#'.join(self.line)
+        # Apply the changes in this translation entry back to the master table
+        self.table_file.apply_update(entry)
 
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.prct_trad.delete("1.0",tk.END)
-            self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-            self.prct_trad_day.delete("1.0",tk.END)
-            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
+        # Regenerate the translation percentages for the day / overall
+        self.load_percentage()  # Global
+        day_translated_count = functools.reduce(
+            lambda acc, entry: acc + 1 if entry.is_translated() else acc,
+            table_day, 0)
+        day_translated_percent = \
+            float(day_translated_count) * 100.0 / len(table_day)
+        self.prct_trad_day.delete("1.0", tk.END)
+        self.prct_trad_day.insert("1.0", "%.1f%%" % day_translated_percent)
 
-
-        if search_window_open and len(searchResults)>0:
+        if search_window_open and len(searchResults) > 0:
             try:
                 self.search_text()
             except IndexError:
