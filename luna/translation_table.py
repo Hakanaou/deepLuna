@@ -34,7 +34,7 @@ class TranslationTableEntry:
     def __repr__(self):
         return (
             f"TranslationTableEntry("
-            f"field_0={self.field_0}, "
+            f"jp_mrg_offset={self.jp_mrg_offset}, "
             f"jp_text='{self.jp_text}', "
             f"translated_text='{self.translated_text}', "
             f"has_ruby={self.has_ruby}, "
