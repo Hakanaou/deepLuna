@@ -1238,7 +1238,7 @@ class MainWindow:
         self.s = Style()
         self.s.theme_use('clam')
         self.s.configure("blue.Horizontal.TProgressbar", foreground='green', background='green')
-        self.s.configure("smallFont.Treeview", font='TkDefaultFont 11')
+        self.s.configure("smallFont.Treeview", font='TkDefaultFont 11', rowheight=24)
         self.s.configure("smallFont.Treeview.Heading", font='TkDefaultFont 11')
 
         self.name_day = tk.StringVar()
@@ -1274,8 +1274,8 @@ class MainWindow:
 
         self.frame_tree = tk.Frame(self.frame_edition, borderwidth=20)
 
-        self.tree = Treeview(self.frame_tree, height = 22, style="smallFont.Treeview")
-        self.tree.column('#0', anchor='w', width=260)
+        self.tree = Treeview(self.frame_tree, height=32, style="smallFont.Treeview")
+        self.tree.column('#0', anchor='w', width=320)
         self.tree.heading('#0', text='Game text', anchor='center')
 
         self.table_scr = SceneTable("table_scr.txt")
