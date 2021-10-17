@@ -2138,11 +2138,11 @@ class MainWindow:
             self.set_translation_frame,
             text=(
                 "Translate starting from the line " +
-                str(table_day[cs[0]].offset_label) + " until line " +
-                str(table_day[cs[-1]].offset_label) + "?"
+                str(table_day[cs[0]].offset_label()) + " until line " +
+                str(table_day[cs[-1]].offset_label()) + "?"
                 if len(cs) > 1
                 else "Translate the line " +
-                str(table_day[cs[0]].offset_label) + "?"
+                str(table_day[cs[0]].offset_label()) + "?"
             )
         )
         self.message.grid(row=3,column=0,pady=10)
