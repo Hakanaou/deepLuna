@@ -1207,7 +1207,7 @@ class Informations:
         information.geometry("400x150")
         information.resizable(height=False, width=False)
 
-        self.nom = tk.Label(information, text ="deepLuna v3.0 — 6/10/2021\nDevelopped by Hakanaou\n", justify=tk.CENTER, borderwidth=10)
+        self.nom = tk.Label(information, text ="deepLuna v3.1 — 18/10/2021\nDevelopped by Hakanaou and R.Schlaikjer\n", justify=tk.CENTER, borderwidth=10)
         self.nom.pack()
 
         self.explanations = tk.Button(information, text="deepLuna GitHub", command=self.callback)
@@ -1275,7 +1275,7 @@ class MainWindow:
 
         self.frame_tree = tk.Frame(self.frame_edition, borderwidth=20)
 
-        self.tree = Treeview(self.frame_tree, height=32, style="smallFont.Treeview")
+        self.tree = Treeview(self.frame_tree, height=21, style="smallFont.Treeview")
         self.tree.column('#0', anchor='w', width=320)
         self.tree.heading('#0', text='Game text', anchor='center')
 
@@ -1344,7 +1344,7 @@ class MainWindow:
         self.label_offsets = tk.Label(self.frame_choix, text="Original text offsets:")
         self.label_offsets.pack()
 
-        self.listbox_offsets = tk.Listbox(self.frame_choix, height=26, width=18, exportselection=False, selectmode=tk.EXTENDED)
+        self.listbox_offsets = tk.Listbox(self.frame_choix, height=32, width=18, exportselection=False, selectmode=tk.EXTENDED)
         self.listbox_offsets.bind('<Button-1>', self.show_text)
         self.listbox_offsets.bind('<Return>', self.show_text)
         self.listbox_offsets.pack(side = tk.LEFT, fill = tk.BOTH)

@@ -90,7 +90,7 @@ class MergedTranslationTableEntry:
         any_has_furigana = any([e.has_ruby for e in self._sub_entries])
         offsets = ', '.join([str(s) for s in self.offset_list])
         if any_has_furigana:
-            offsets += "*"
+            offsets += " *"
         return offsets
 
     def is_translated(self):
