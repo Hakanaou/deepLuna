@@ -1,7 +1,9 @@
 ### Import packages
 import ast
 import contextlib
+import copy
 import datetime
+import functools
 import os
 import re
 import requests
@@ -22,6 +24,13 @@ from pathlib import Path
 from unpack_allsrc import *
 from prep_tpl import *
 
+from luna.scene_table import SceneTable
+from luna.translation_table import (
+    TranslationTable,
+    TranslationTableEntry,
+    MergedTranslationTableEntry
+)
+
 ###Global variables and config.ini initialisation
 
 searchResults = []
@@ -33,6 +42,8 @@ n_trad_day = 0
 table_day = []
 
 #dayInfoTable
+
+TRANSLATION_PLACEHOLDER = 'TRANSLATION'
 
 if os.path.exists("config.ini"):
     config = open("config.ini","r+",encoding="utf-8")
@@ -237,7 +248,7 @@ def ruby_aware_split_words(line):
     return ret
 
 
-def add_linebreaks(line, length):
+def add_linebreaks(line, length, start_cursor_pos=0):
     # If the line is already shorter than the desired length, just return
     if noruby_len(line) < length:
         return(line)
@@ -254,7 +265,10 @@ def add_linebreaks(line, length):
     i = 0
     listPos = []
     while i < len(splitLine):
-        cumulLen = 0
+        # Initialize the current length of the accumulated line
+        # in the event that we are working on a glued sentence
+        cumulLen = start_cursor_pos
+        start_cursor_pos = 0
         while cumulLen <= length and i < len(splitLine):
             cumulLen += (noruby_len(splitLine[i])+1)
             if cumulLen <= length:
@@ -268,12 +282,12 @@ def add_linebreaks(line, length):
                 break
 
     for i in range(len(listPos)):
-        splitLine.insert(listPos[i]+i,'\n')
+        splitLine.insert(listPos[i]+i, '\n')
 
     returnLine = ' '.join(splitLine)
-    returnLine  = re.sub(r"( \n )|( \n)",r"\n",returnLine)
+    returnLine = re.sub(r"( \n )|( \n)", r"\n", returnLine)
     returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
-    return(returnLine)
+    return returnLine
 
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
@@ -287,27 +301,27 @@ def export_day(dayName,scrTable,mainTable):
         os.mkdir('export')
         os.chdir('export/')
 
+    # Get the list of text offsets for this scene
+    offset_list = scrTable.offsets_for_scene(dayName)
 
-    for day in scrTable:
-        if day[0] == dayName:
-            scrInfoTable = day
-            break
-
-    day_export = open(scrInfoTable[0]+".txt","w+",encoding = "utf-8")
+    # Open the output file
+    day_export = open(dayName+".txt", "w+", encoding="utf-8")
 
     dayStr = ''
 
-    for i in range(len(scrInfoTable[1])):
-
+    for i in range(len(offset_list)):
         dayStr += ('<Page'+str(i+1)+'>\n')
-        pageUpdated = page_to_SpeLineInfo(scrInfoTable[1][i])
+        pageUpdated = page_to_SpeLineInfo(offset_list[i])
 
         for k in range(len(pageUpdated)):
 
-            for line in mainTable:
-                if int(orders_line(scrInfoTable[1][i][k])[0])+1 == int(line[4]):
-                    extrLine = line[1] if line[2] == 'TRANSLATION' else line[2]
-                    break
+            line_offset = int(orders_line(offset_list[i][k])[0]) + 1
+            entry = mainTable.entry_for_text_offset(line_offset)
+            extrLine = (
+                entry.translated_text
+                if entry.is_translated()
+                else entry.jp_text
+            )
 
             if pageUpdated[k][1] == 1:
                 if k == len(pageUpdated)-1:
@@ -327,232 +341,194 @@ def export_day(dayName,scrTable,mainTable):
     os.chdir(mainDir)
 
 
-def export_all(scrTable,mainTable):
+def export_all(scrTable, mainTable):
 
     print("Exporting whole database:")
     for day in scrTable:
-        export_day(day[0],scrTable,mainTable)
+        export_day(day[0], scrTable, mainTable)
         print(day[0]+".txt exported")
     print("Exporting done!")
 
-def gen_day_subtable(dayName,scrTable,mainTable):
 
-    if dayName != "void":
-        for day in scrTable:
-            if day[0] == dayName:
-                scrInfoTable = day
-                break
+def gen_day_subtable(dayName, scrTable, mainTable):
+    # If we are loading the hidden text lines, just select all strings with
+    # only the 'void' scene tag
+    if dayName == "void":
+        return [
+            MergedTranslationTableEntry([entry])
+            for entry in mainTable.hidden_text_lines()
+        ]
 
+    # Find the matching scr table entry for this scene
+    page_offsets = scrTable.offsets_for_scene(dayName)
 
-        subTable = []
+    subTable = []
 
-        for i in range(len(scrInfoTable[1])):
+    # For each page in this scene
+    for page_idx in range(len(page_offsets)):
+        offset_list = page_offsets[page_idx]
 
-            pageUpdated = page_to_SpeLineInfo(scrInfoTable[1][i])
+        # Convert each line reference on the page into a tuple encoding
+        # control codes
+        pageUpdated = page_to_SpeLineInfo(offset_list)
 
-            for k in range(len(pageUpdated)):
-                for line in mainTable:
-                    if int(orders_line(scrInfoTable[1][i][k])[0])+1 == int(line[4]):
-                        subTable.append(line)
+        # For each line on the page, iterate the entire main table(!)
+        # and check if the line in the table has the same text offset.
+        for line_idx in range(len(pageUpdated)):
+            offset_raw = offset_list[line_idx]
+            line_offset = int(orders_line(offset_raw)[0]) + 1
+            entry = mainTable.entry_for_text_offset(line_offset)
+            assert entry, "Failed to locate table entry for script offset '%s'" % line_offset
+            subTable.append(entry)
 
-        subTable = correct_day_subtable(subTable)
+    return correct_day_subtable(subTable)
 
-    else:
-        subTable = []
-        for line in mainTable:
-            if len(line[6]) == 1 and line[6][0] == "void":
-                subTable.append(line)
-
-    return(subTable)
 
 def correct_day_subtable(subTable):
+    # Given a list of entries for a day, group entries that are conjoined.
     newSubTable = []
-    i=0
+    i = 0
     while i < len(subTable):
-        if subTable[i][7] == 1:
-            j=i
-            offset = []
-            sentence = []
-            sentenceTL = []
-            line = []
-            while j < len(subTable) and subTable[j][7] == 1:
-                offset.append(subTable[j][0])
-                sentence.append(subTable[j][1])
-                if subTable[j][2] != 'TRANSLATION':
-                    sentenceTL.append(subTable[j][2])
-                line.append(subTable[j][4])
-                j += 1
+        # If there is nothing weird about this line, just add it and continue
+        if subTable[i].is_glued == 0:
+            newSubTable.append(MergedTranslationTableEntry([subTable[i]]))
+            i += 1
+            continue
 
-            if len(sentenceTL) < len(offset) and sentenceTL != []:
-                sentenceTL = [(subTable[p][2] if subTable[p][2] != 'TRANSLATION' else subTable[p][1]) for p in range(i,j)]
+        # If this is a merged line, then merge it with any subsequent lines
+        # with the flag set
+        j = i
+        acc = []
+        while j < len(subTable) and subTable[j].is_glued == 1:
+            acc.append(subTable[j])
+            j += 1
+        newSubTable.append(MergedTranslationTableEntry(acc))
 
-            if sentenceTL == []:
-                sentenceTL = 'TRANSLATION'
-            else:
-                sentenceTL = '#'.join(sentenceTL)
-            sentence = '#'.join(sentence)
-            newSubTable.append([offset,sentence,sentenceTL,subTable[i][3],line,subTable[i][5],subTable[i][6],subTable[i][7],subTable[i][8]])
-            i=j-1
-        else:
-            newSubTable.append(subTable[i])
-        i += 1
+        i = j
 
-    return(newSubTable)
+    return newSubTable
 
 
 def update_database():
+    # If there is nothing to update, return None
+    UPDATE_PATH = "update"
+    if not os.path.exists(UPDATE_PATH):
+        return None
 
-    if os.path.exists("update"):
+    # Create a new copy of the translation / script tables
+    translation_table = TranslationTable("table.txt")
+    scr_table = SceneTable("table_scr.txt")
 
-        mainDir = os.getcwd()
+    # Load the original jp script text mrg
+    jp_script_mrg = None
+    with open("script_text.mrg", "rb") as script_jp:
+        jp_script_mrg = script_jp.read()
 
-        mainTable = load_table("table.txt")
-        scrTable = load_table("table_scr.txt")
-        namesScrTable = [elem[0] for elem in scrTable]
-        script_jp = open("script_text.mrg","rb")
-        dataScriptJP = script_jp.read()
+    print("Updating the main database...")
+    update_start = time.monotonic()
+    traverse_updates(UPDATE_PATH, scr_table, translation_table, jp_script_mrg)
+    update_elapsed = time.monotonic() - update_start
+    print("Updating done in %.1f seconds" % update_elapsed)
 
-        # os.chdir('update/')
+    # Write the updated table back to file
+    translation_table.serialize_to_file("table.txt")
 
-        print("Updating the main database...")
+    return translation_table
 
-        newTable = mainTable
 
-        traverse_updates("update", namesScrTable, scrTable, newTable, dataScriptJP)
-        # for filename in os.listdir(os.getcwd()):
-        #     if filename.split('.')[0] in namesScrTable:
-        #         newTable = txtfile_update_table(filename,scrTable,newTable,dataScriptJP)
-        #         os.remove(filename)
-        #         print(filename+" done")
-
-        print("Updating done!")
-        os.chdir(mainDir)
-
-        modTable = open("table.txt",'w+',encoding="utf-8")
-        modTable.write('\n'.join([str(elem) for elem in newTable]))
-        modTable.close()
-
-        return(newTable)
-
-def traverse_updates(path, namesScrTable, scrTable, newTable, dataScriptJP):
+def traverse_updates(path, scr_table, translation_table, jp_script_mrg):
     for root, dirs, files in os.walk(path):
-        for dir in dirs:
-            traverse_updates(os.path.join(root, dir), namesScrTable, scrTable, newTable, dataScriptJP)
-            shutil.rmtree(os.path.join(root, dir))
+        for directory in dirs:
+            # Recurse into subdirectories
+            traverse_updates(
+                os.path.join(root, directory), scr_table,
+                translation_table, jp_script_mrg)
+
+            # Remove directories after processing
+            shutil.rmtree(os.path.join(root, directory))
 
         for filename in files:
-            if filename.split('.')[0] in namesScrTable:
+            # Does this file map to a known scene?
+            file_scene = filename.split('.')[0]
+            if file_scene in scr_table.scene_names():
+                # Ingest this file and mutate our translation table
                 file_path = os.path.join(root, filename)
-                newTable = new_txtfile_update_table(file_path, scrTable, newTable, dataScriptJP)
+                new_txtfile_update_table(
+                    file_path, scr_table, translation_table, jp_script_mrg)
+
+                # Remove after processing
                 os.remove(file_path)
-                print(file_path+" done")
+                print("Imported changes from '%s'" % file_path)
 
 
-def txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
-
-    cleanTextFile = open(dayFile, "r+", encoding="utf-8")
-    cleanText = cleanTextFile.read()
-
-    cleanText = re.sub(r"\n\<Page[0-9]+\>\n",r"\n",cleanText)
-    cleanText = re.sub(r"\<Page[0-9]+\>\n",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.split(r"\n|\#",cleanText)
-
-    redName = os.path.basename(dayFile).split('.')[0]
-
-    for day in table_scr:
-        if day[0] == redName:
-            assoDay = day[1]
-            break
-
-    dayTable = []
-    counter = 0
-
-    newMainTable = mainTable
-
-    for i in range(len(assoDay)):
-
-        pageUpdated = page_to_SpeLineInfo(assoDay[i])
-
-        for l in range(len(pageUpdated)):
-            extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
-            extrLine[2] = extrLine[2] if cleanText[counter] == extrLine[1] else cleanText[counter]
-            dayTable.append(extrLine)
-            counter += 1
-
-    for i in  range(len(dayTable)):
-        for j in range(len(newMainTable)):
-            if dayTable[i][0] == newMainTable[j][0] and dayTable[i][2] != 'TRANSLATION':
-                newMainTable[j][2] = dayTable[i][2]
-
-    return(newMainTable)
-
-    cleanTextFile.close()
-
-
-def new_txtfile_update_table(dayFile,table_scr,mainTable,scriptTextMrgStream):
-
+def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_mrg):
     # Open scene file
-    with open(dayFile, "r+", encoding="utf-8") as cleanTextFile:
+    with open(filename, "r+", encoding="utf-8") as cleanTextFile:
         cleanText = cleanTextFile.read()
 
-    # We eliminate choices indication and split the text into pages (and since we start by page 1, we eliminate the first element of the list)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.sub(r"C\:\>",r"",cleanText)
-    cleanText = re.split(r"\<Page[0-9 ]+\>",cleanText)[1:]
+    # We eliminate choices indication and split the text into pages
+    # And since we start by page 1, we eliminate the first element of the list
+    cleanText = re.sub(r"C\:\>", r"", cleanText)
+    cleanText = re.split(r"\<Page[0-9 ]+\>", cleanText)[1:]
 
-    # We split the pages on newlines or special pound character, and remove the '' remaining after regex splitting with \n and pound
-    cleanText = [list(filter(lambda a: a != '', re.split(r"\n|\#",page))) for page in cleanText]
+    # We split the pages on newlines or special pound character, and remove
+    # the '' remaining after regex splitting with \n and pound
+    cleanText = [
+        [line for line in re.split(r"\n|\#", page) if line]
+        for page in cleanText
+    ]
 
     # Get name of the scene from its path
-    redName = os.path.basename(dayFile).split('.')[0]
+    scene_name = os.path.basename(filename).split('.')[0]
 
-    # Search for the corresponding scene in the table_scr
-    for day in table_scr:
-        if day[0] == redName:
-            assoDay = day[1]
-            break
+    # Retrieve the offset list from the scr_table
+    scene_offsets = scr_table.offsets_for_scene(scene_name)
 
     # Check whether we have the right number of pages in the scene
-    if len(assoDay) != len(cleanText):
-        print('Bad number of pages in %s.' %dayFile)
-        return mainTable;
-        # raise SystemExit('Bad number of pages in %s.' %dayFile)
-    else:
-        # Initialisation of local variables
-        dayTable = []
+    if len(scene_offsets) != len(cleanText):
+        print("Bad number of pages in '%s'" % filename)
+        return translation_table
 
-        # Creating new table variable where we'll put the new data and that we'll return to the caller
-        newMainTable = mainTable
+    # Initialisation of local variables
+    dayTable = []
 
-        # We run through the pages of the day
-        for i in range(len(assoDay)):
+    # We run through the pages of the day
+    for i in range(len(scene_offsets)):
 
-            # We get special formating for the pages, converting the _n, _r_n or _s symbols to the corresponding elements of the general table (mainTable)
-            pageUpdated = page_to_SpeLineInfo(assoDay[i])
+        # We get special formating for the pages, converting the
+        # _n, _r_n or _s symbols to the corresponding elements of the
+        # general table (translation_table)
+        pageUpdated = page_to_SpeLineInfo(scene_offsets[i])
 
-            # If number of lines on the page doesn't correspond, raise an error
-            if len(pageUpdated) != len(cleanText[i]):
-                print('Bad number of lines in page %d of file %s.'  %(i+1,dayFile))
-                return mainTable;
-                # raise SystemExit('Bad number of lines in page %d of file %s.'  %(i+1,dayFile))
-            else:
-                #We run through the lines of the pages - if they are identical to the japanese, we change nothing, otherwise we add the translation
-                for l in range(len(pageUpdated)):
-                    extrLine = extract_by_line(scriptTextMrgStream,int(pageUpdated[l][0])+1,i+1,redName,pageUpdated[l][1],pageUpdated[l][2])
-                    extrLine[2] = extrLine[2] if cleanText[i][l] == extrLine[1] else cleanText[i][l]
-                    dayTable.append(extrLine)
+        # If number of lines on the page doesn't correspond, raise an error
+        if len(pageUpdated) != len(cleanText[i]):
+            print('Bad number of lines in %s page %d.' % (filename, i + 1))
+            return translation_table
 
-        # And we update the newMainTable
-        for i in  range(len(dayTable)):
-            for j in range(len(newMainTable)):
-                if dayTable[i][0] == newMainTable[j][0] and dayTable[i][2] != 'TRANSLATION':
-                    newMainTable[j][2] = dayTable[i][2]
+        # We run through the lines of the pages - if they are identical to the
+        # japanese, we change nothing, otherwise we add the translation
+        for line in range(len(pageUpdated)):
+            extrLine = extract_by_line(
+                jp_script_mrg,
+                int(pageUpdated[line][0]) + 1,
+                i + 1,
+                scene_name,
+                pageUpdated[line][1],
+                pageUpdated[line][2]
+            )
 
-        return(newMainTable)
+            extrLine[2] = (
+                extrLine[2]
+                if cleanText[i][line] == extrLine[1]
+                else cleanText[i][line]
+            )
+            dayTable.append(extrLine)
 
-
+    # For each loaded string, update the matching translation in our db
+    for import_entry in dayTable:
+        db_entry = translation_table.entry_for_text_offset(import_entry[4])
+        db_entry.translated_text = import_entry[2]
+        translation_table.apply_update(MergedTranslationTableEntry([db_entry]))
 
 
 def initial_full_extract():
@@ -617,18 +593,13 @@ def initial_full_extract():
 
     print("Initialisation finished!")
 
-    return([tableList,scrFullInfo])
+    # Lazy - reload the files from disk to get them in the new format
+    # instead of rewriting the import process right now
+    reloaded_translation_table = TranslationTable('table.txt')
+    reloaded_table_scr = SceneTable('table_scr.txt')
 
+    return([reloaded_translation_table, reloaded_table_scr])
 
-def load_table(tableName):
-    file = open(tableName,"r+",encoding="utf-8")
-    data = file.read()
-    data = data.split('\n')
-    data = [ast.literal_eval(elem) for elem in data]
-    if len(data[0]) == 9:
-        data = [[elem[0],elem[1],elem[2],int(elem[3]),int(elem[4]),int(elem[5]),elem[6],int(elem[7]),int(elem[8])] for elem in data]
-    file.close()
-    return(data)
 
 def complete_table(tab_new,tab_old):
     tab_new_hexa = [elem[0] for elem in tab_new]
@@ -809,10 +780,10 @@ def tplscript_to_txtfile(tplScript,niceText=False):
     return([listText,scrInfo])
 
 
-def extract_text(scriptFile,outputFile):
+def extract_text(scriptFile, outputFile):
 
     script = open(scriptFile, 'rb')
-    extractedText = open(outputFile,'w+',encoding="utf-8")
+    extractedText = open(outputFile, 'w+', encoding="utf-8")
 
     data = script.read()
 
@@ -823,8 +794,6 @@ def extract_text(scriptFile,outputFile):
     nextPointerWord = b'\x00\x00\x00A'
     positionText =  offset
     positionPointer = '0x58'
-
-    furiganaFlag = 0
 
     while nextPointerWord != b'\xFF\xFF\xFF\xFF':
 
@@ -873,57 +842,73 @@ def swap_characters_line(line,rep_list):
         return(line)
 
 
-def insert_translation(scriptFile,translatedText,scriptFileTranslated,swap=False):
+def insert_translation(scriptFile, translation_table_filename, scriptFileTranslated, swap=False):
 
     print("Starting script injection...")
 
     scriptJP = open(scriptFile, 'rb')
     scriptTL = open(scriptFileTranslated, 'wb')
-    translatedTextFile = open(translatedText, 'r', encoding="utf-8")
 
     dataJPFile = scriptJP.read()
 
-    dataTLFile = translatedTextFile.read()
-    dataTLFile = dataTLFile.split('\n')
-    dataTLFile = [ast.literal_eval(elem) for elem in dataTLFile]
+    # Read in the translation table again
+    translation_table = TranslationTable(translation_table_filename)
 
-    startJPFile = dataJPFile[0:int('58',16)]
-    endJPFile = dataJPFile[int('36B89F',16):]
+    startJPFile = dataJPFile[0:int('58', 16)]
+    endJPFile = dataJPFile[int('36B89F', 16):]
 
     bytesNewPointers = b'\x00\x00\x00\x00'
     totalLenText = '00000000'
     bytesListTLText = b''
 
-    dataTLFile = correct_day_subtable(dataTLFile)
+    # Track cursor position for breaking conjoined lines
+    cursor_position = 0
 
-    # for line in dataTLFile:
-    #
-    #     newLine = line[1].encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else add_linebreaks(line[2],55).encode("utf-8")+b'\x0D\x0A'
-    #     bytesListTLText += newLine
-    #     totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-    #     bytesNewPointers += bytes.fromhex(totalLenText)
+    # Iterate the lines in the translation table, in order of their offset
+    string_offsets = sorted(translation_table.string_offsets())
 
-    for line in dataTLFile:
+    for offset in string_offsets:
+        entry = translation_table.entry_for_text_offset(offset)
+        assert type(entry.jp_mrg_offset) == str
 
-        line[2] = line[2].split('//')[0]
+        # If this line isn't glued, reset any tracked cursor position
+        # There exist some lines thare are 'dead', don't reset cursor pos
+        # when we see these
+        if not entry.is_glued and entry.is_translated():
+            cursor_position = 0
 
-        if type(line[0]) == str:
-            newLine = swap_characters_line(line[1],swap).encode("utf-8")+b'\x0D\x0A' if line[2] == 'TRANSLATION' else (add_linebreaks(swap_characters_line(line[2],swap),55).encode("utf-8") if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).encode("utf-8"))+b'\x0D\x0A'
-            bytesListTLText += newLine
-            totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-            bytesNewPointers += bytes.fromhex(totalLenText)
-        else:
-            if line[2] != "TRANSLATION":
-                newText = add_linebreaks(swap_characters_line(line[2],swap),55).split('#') if line[6][0][:2] != 'QA' else swap_characters_line(line[2],swap).split('#')
-            else:
-                newText = line[1].split('#')
+        line_to_inject = None
+        if not entry.is_translated():
+            # For untranslated strings, put the original JP text back in
+            charswapped_line = swap_characters_line(entry.jp_text, swap)
+            line_to_inject = charswapped_line.encode("utf-8") + b'\x0D\x0A'
+        elif entry.scene_list[0][:2] == 'QA':
+            # If this is a Ciel Sensei segment, we don't add a finale \r\n
+            line_to_inject = add_linebreaks(
+                swap_characters_line(entry.translated_text, swap),
+                55,
+                start_cursor_pos=cursor_position
+            ).encode("utf-8")
+        else:  # Normal case
+            # Replace any custom character sets
+            charswapped_line = \
+                    swap_characters_line(entry.translated_text, swap)
 
-            for i in range(len(newText)):
-                newLine = newText[i].encode("utf-8")+b'\x0D\x0A'
-                #print(newLine)
-                bytesListTLText += newLine
-                totalLenText = add_zeros(hexsum(totalLenText,hex(len(newLine)))[2:])
-                bytesNewPointers += bytes.fromhex(totalLenText)
+            # Insert linebreaks
+            broken_line = add_linebreaks(
+                charswapped_line, 55, start_cursor_pos=cursor_position)
+
+            # Update cursor position with the length of the final line
+            cursor_position = len(broken_line.split('\n')[-1])
+
+            # Encode and add trailing \r\n\
+            line_to_inject = broken_line.encode("utf-8") + b'\x0D\x0A'
+
+        # Encode this line into our text data and add an offset indirection
+        bytesListTLText += line_to_inject
+        totalLenText = add_zeros(
+            hexsum(totalLenText, hex(len(line_to_inject)))[2:])
+        bytesNewPointers += bytes.fromhex(totalLenText)
 
     bytesListTLText = bytesListTLText[:-2]
     bytesNewPointers = bytesNewPointers[:-4] + bytesNewPointers[-8:-4] + 12*b'\xFF'
@@ -934,7 +919,6 @@ def insert_translation(scriptFile,translatedText,scriptFileTranslated,swap=False
 
     scriptJP.close()
     scriptTL.close()
-    translatedTextFile.close()
 
     print("Script injection done!")
 
@@ -1187,7 +1171,7 @@ class StartWindow:
         if os.path.exists("table.txt") and os.path.exists("table_scr.txt"):
             self.table_jp = update_database()
             print("Loading the database...")
-            self.table_scr = load_table("table_scr.txt")
+            self.table_scr = SceneTable("table_scr.txt")
             print("Loading done!")
             self.translation_window = tk.Toplevel(self.welcome)
 
@@ -1223,7 +1207,7 @@ class Informations:
         information.geometry("400x150")
         information.resizable(height=False, width=False)
 
-        self.nom = tk.Label(information, text ="deepLuna v3.0 — 6/10/2021\nDevelopped by Hakanaou\n", justify=tk.CENTER, borderwidth=10)
+        self.nom = tk.Label(information, text ="deepLuna v3.1 — 18/10/2021\nDevelopped by Hakanaou and R.Schlaikjer\n", justify=tk.CENTER, borderwidth=10)
         self.nom.pack()
 
         self.explanations = tk.Button(information, text="deepLuna GitHub", command=self.callback)
@@ -1255,7 +1239,7 @@ class MainWindow:
         self.s = Style()
         self.s.theme_use('clam')
         self.s.configure("blue.Horizontal.TProgressbar", foreground='green', background='green')
-        self.s.configure("smallFont.Treeview", font='TkDefaultFont 11')
+        self.s.configure("smallFont.Treeview", font='TkDefaultFont 11', rowheight=24)
         self.s.configure("smallFont.Treeview.Heading", font='TkDefaultFont 11')
 
         self.name_day = tk.StringVar()
@@ -1291,13 +1275,12 @@ class MainWindow:
 
         self.frame_tree = tk.Frame(self.frame_edition, borderwidth=20)
 
-        self.tree = Treeview(self.frame_tree, height = 22, style="smallFont.Treeview")
-        self.tree.column('#0', anchor='w', width=260)
+        self.tree = Treeview(self.frame_tree, height=21, style="smallFont.Treeview")
+        self.tree.column('#0', anchor='w', width=320)
         self.tree.heading('#0', text='Game text', anchor='center')
 
-        self.table_scr = load_table("table_scr.txt")
-
-        self.nameDaysList = [day[0] for day in self.table_scr]
+        self.table_scr = SceneTable("table_scr.txt")
+        self.nameDaysList = self.table_scr.scene_names()
 
         self.clusDayData = names_organize(self.nameDaysList)
 
@@ -1361,7 +1344,7 @@ class MainWindow:
         self.label_offsets = tk.Label(self.frame_choix, text="Original text offsets:")
         self.label_offsets.pack()
 
-        self.listbox_offsets = tk.Listbox(self.frame_choix, height=26, width=18, exportselection=False, selectmode=tk.EXTENDED)
+        self.listbox_offsets = tk.Listbox(self.frame_choix, height=32, width=18, exportselection=False, selectmode=tk.EXTENDED)
         self.listbox_offsets.bind('<Button-1>', self.show_text)
         self.listbox_offsets.bind('<Return>', self.show_text)
         self.listbox_offsets.pack(side = tk.LEFT, fill = tk.BOTH)
@@ -1396,7 +1379,7 @@ class MainWindow:
 
         self.frame_buttons = tk.Frame(self.frame_texte, borderwidth=10)
 
-        self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.valider_ligne)
+        self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.validate_line)
         self.button_save_line.grid(row=1, column=1,padx=2)
 
         self.button_save_file = tk.Button(self.frame_buttons, text="Save", command=self.enregistrer_fichier)
@@ -1450,15 +1433,9 @@ class MainWindow:
             self.text_orig.config(state=tk.DISABLED)
 
     def load_percentage(self):
-
-        global n_trad
-        n_trad = 0
-        for i in range(len(self.table_file)):
-            if self.table_file[i][2] != "TRANSLATION":
-                n_trad = n_trad + 1
-
-        self.prct_trad.delete("1.0",tk.END)
-        self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
+        percent_translated = self.table_file.translated_percent()
+        self.prct_trad.delete("1.0", tk.END)
+        self.prct_trad.insert("1.0", "%.1f%%" % percent_translated)
 
     def closing_main_window(self):
 
@@ -1501,15 +1478,15 @@ class MainWindow:
         global table_day
 
         if table_day != []:
-            if table_day[0][6][0] != 'void':
-                export_day(table_day[0][6][0],self.table_scr_file,self.table_file)
+            if table_day[0].scene_list[0] != 'void':
+                export_day(table_day[0].scene_list[0],self.table_scr_file,self.table_file)
                 self.warning = tk.Toplevel(self.dl_editor)
                 self.warning.title("deepLuna")
                 self.warning.resizable(height=False, width=False)
                 self.warning.attributes("-topmost", True)
                 self.warning.grab_set()
 
-                self.warning_message = tk.Label(self.warning, text="Scene "+table_day[0][6][0]+" exported successfully!")
+                self.warning_message = tk.Label(self.warning, text="Scene "+table_day[0].scene_list[0]+" exported successfully!")
                 self.warning_message.grid(row=0,column=0,pady=5)
 
                 self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
@@ -1618,30 +1595,6 @@ class MainWindow:
             if self.tree.item(self.curItem)["text"][:3] == "Hid":
                 self.open_day("void")
                 root.update()
-
-
-    def split_gather_line(self,line):
-        if type(line[0]) == list:
-            self.linesList = []
-            for self.i in range(len(line[0])):
-                self.linesList.append([line[0][i],line[1].split('#')[i],line[2].split('#')[i],line[3],line[4][i],line[5],line[6],line[7],line[8]])
-        else:
-            self.linesList = [list]
-        return(self.linesList)
-
-    def reinsert_daytable(self,dayTable,mainTable):
-
-        self.newMainTable = mainTable
-        self.splitDayTable = []
-        for self.i in range(len(dayTable)):
-            self.splitDayTable += self.split_gather_line(dayTable[self.i])
-
-        for self.i in  range(len(self.splitDayTable)):
-            for self.j in range(len(self.newMainTable)):
-                if self.splitDayTable[self.i][0] == self.newMainTable[self.j][0] and self.splitDayTable[self.i][2] != 'TRANSLATION':
-                    self.newMainTable[self.j][2] = self.splitDayTable[self.i][2]
-
-        return(self.newMainTable)
 
     def function_insert_translation(self):
 
@@ -1769,18 +1722,22 @@ class MainWindow:
             n_trad_day = 0
             self.len_table_day = len(table_day)
             for self.i in range(self.len_table_day):
-                if table_day[self.i][3] == 1:
-                    self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4])+' *')
-                else:
-                    self.listbox_offsets.insert(self.i, self.align_page(str(table_day[self.i][5]),len(str(table_day[-1][5])))+" : "+str(table_day[self.i][4]))
-                if table_day[self.i][2] != "TRANSLATION":
-                    self.listbox_offsets.itemconfig(self.i, bg='#BCECC8') #green for translated and inserted
+                self.listbox_offsets.insert(
+                    self.i,
+                    self.align_page(
+                        str(table_day[self.i].page_number),
+                        len(str(table_day[-1].page_number))
+                    ) + " : " + table_day[self.i].offset_label()
+                )
+
+                if table_day[self.i].is_translated():
+                    # Green for translated and inserted
+                    self.listbox_offsets.itemconfig(self.i, bg='#BCECC8')
                     n_trad_day = n_trad_day + 1
 
-
-            self.prct_trad_day.delete("1.0",tk.END)
+            self.prct_trad_day.delete("1.0", tk.END)
             self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-            self.name_day.set(str(table_day[0][6][0])+": ")
+            self.name_day.set(str(table_day[0].scene_list[0])+": ")
         else:
             print("This day is empty.")
         print("Day loaded!")
@@ -1818,10 +1775,11 @@ class MainWindow:
                     self.text_orig.delete("1.0", tk.END)
                     self.text_trad.delete("1.0", tk.END)
                     self.text_comment.delete("1.0", tk.END)
-                    self.text_orig.insert("1.0", table_day[offset][1])
-                    self.text_trad.insert("1.0", table_day[offset][2].split('//')[0])
-                    if len(table_day[offset][2].split('//')) == 2:
-                        self.text_comment.insert("1.0", table_day[offset][2].split('//')[1])
+                    self.text_orig.insert("1.0", table_day[offset].jp_text)
+                    split_translation = table_day[offset].translated_text.split('//')
+                    self.text_trad.insert("1.0", split_translation[0])
+                    if len(split_translation) == 2:
+                        self.text_comment.insert("1.0", split_translation[1])
 
 
     def ctrlEvent(self,event):
@@ -1830,7 +1788,7 @@ class MainWindow:
         else:
             return "break"
 
-    def valider_ligne(self):
+    def validate_line(self):
 
         global search_window_open
         global posSearch
@@ -1839,91 +1797,54 @@ class MainWindow:
         global n_trad_day
         global table_day
 
-        cs=self.listbox_offsets.curselection()
+        # Load the entry that we are validating
+        entry_offset = self.listbox_offsets.curselection()[0]
+        entry = table_day[entry_offset]
 
+        # Load input translation text / comment from UI
         self.line = self.text_trad.get("1.0", tk.END).strip('\n')
-
         self.comment = self.text_comment.get("1.0", tk.END).strip('\n')
 
-        if self.comment != '' and self.line != 'TRANSLATION':
+        # If the translation and comment are valid, conjoin them
+        if self.comment and self.line != TRANSLATION_PLACEHOLDER:
             self.line = self.line + '//' + self.comment
 
-        #table_day[cs[0]][2] = self.text_trad.get("1.0", tk.END)
-        #if self.line[-1] == "\n":
-        #    self.line = self.line[:-1]
+        # If the translation input is the raw 'TRANSLATION' placeholder,
+        # _clear_ the translation on this entry
+        if self.line == TRANSLATION_PLACEHOLDER:
+            entry.clear_translation()
+            # Clear highlight for line
+            self.listbox_offsets.itemconfig(entry_offset, bg='#FFFFFF')
+        else:
+            # If the input translation text valid, check if it fits
+            split_line = self.line.split('#')
 
-        if table_day[cs[0]][2] == "TRANSLATION" and self.line != 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                self.line = self.line.split('#')
+            # If the numbers are wrong, highlight red and crash operation
+            if len(entry.offset_list) != len(split_line):
+                self.listbox_offsets.itemconfig(entry_offset, bg='#ECBDBC')
+                assert False, "Line count mismatch - expected %d, got %d" % (
+                    len(entry.offset_list), len(split_line))
 
-                if len(self.line) > len(table_day[cs[0]][0]):
-                    self.line = self.line[:len(table_day[cs[0]][0])]
-                    table_day[cs[0]][2] = '#'.join(self.line)
-                else:
-                    if len(self.line) < len(table_day[cs[0]][0]):
-                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
-                            self.line.append("ERROR")
-                        table_day[cs[0]][2] = '#'.join(self.line)
+            # Apply the translation string to the merged entry
+            entry.set_translation(split_line)
 
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.listbox_offsets.itemconfig(cs[0], bg='#BCECC8') #green for translated and inserted
-            n_trad = n_trad + 1
-            n_trad_day = n_trad_day + 1
-            self.prct_trad.delete("1.0",tk.END)
-            self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-            self.prct_trad_day.delete("1.0",tk.END)
-            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        elif table_day[cs[0]][2] != "TRANSLATION" and self.line == 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                #self.line = self.line.split('#')
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],"TRANSLATION",self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.listbox_offsets.itemconfig(cs[0], bg='#FFFFFF')
-            if n_trad > 0:
-                n_trad = n_trad - 1
-                n_trad_day = n_trad_day - 1
-                self.prct_trad.delete("1.0",tk.END)
-                self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-                self.prct_trad_day.delete("1.0",tk.END)
-                self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
-        elif table_day[cs[0]][2] != "TRANSLATION" and self.line != 'TRANSLATION':
-            if type(table_day[cs[0]][0]) == str:
-                table_day[cs[0]][2] = self.line
-            else:
-                table_day[cs[0]][2] = self.line
-                self.line = self.line.split('#')
+            # Mark this entry as green
+            self.listbox_offsets.itemconfig(entry_offset, bg='#BCECC8')
 
-                if len(self.line) > len(table_day[cs[0]][0]):
-                    self.line = self.line[:len(table_day[cs[0]][0])]
-                    table_day[cs[0]][2] = '#'.join(self.line)
-                else:
-                    if len(self.line) < len(table_day[cs[0]][0]):
-                        for self.erlen in range(len(table_day[cs[0]][0])-len(self.line)):
-                            self.line.append("ERROR")
-                        table_day[cs[0]][2] = '#'.join(self.line)
+        # Apply the changes in this translation entry back to the master table
+        self.table_file.apply_update(entry)
 
-                for self.i in range(len(table_day[cs[0]][0])):
-                    for self.j in range(len(self.table_file)):
-                        if self.table_file[self.j][0] == table_day[cs[0]][0][self.i]:
-                            self.table_file[self.j] = [self.table_file[self.j][0],self.table_file[self.j][1],self.line[self.i],self.table_file[self.j][3],self.table_file[self.j][4],self.table_file[self.j][5],self.table_file[self.j][6],self.table_file[self.j][7],self.table_file[self.j][8]]
-            self.prct_trad.delete("1.0",tk.END)
-            self.prct_trad.insert("1.0", str(round(n_trad*100/len(self.table_file),1))+"%")
-            self.prct_trad_day.delete("1.0",tk.END)
-            self.prct_trad_day.insert("1.0", str(round(n_trad_day*100/len(table_day),1))+"%")
+        # Regenerate the translation percentages for the day / overall
+        self.load_percentage()  # Global
+        day_translated_count = functools.reduce(
+            lambda acc, entry: acc + 1 if entry.is_translated() else acc,
+            table_day, 0)
+        day_translated_percent = \
+            float(day_translated_count) * 100.0 / len(table_day)
+        self.prct_trad_day.delete("1.0", tk.END)
+        self.prct_trad_day.insert("1.0", "%.1f%%" % day_translated_percent)
 
-
-        if search_window_open and len(searchResults)>0:
+        if search_window_open and len(searchResults) > 0:
             try:
                 self.search_text()
             except IndexError:
@@ -1932,20 +1853,13 @@ class MainWindow:
 
 
     def enregistrer_fichier(self):
-
         global search_window_open
         global posSearch
         global searchResults
         global table_day
 
         print("Saving file, please wait...")
-
-        self.table_file = self.reinsert_daytable(self.table_scr_file,self.table_file)
-
-        tableFile = open("table.txt","w",encoding="utf-8")
-        tableFile.write("\n".join([str(elem) for elem in self.table_file]))
-        tableFile.close()
-
+        self.table_file.serialize_to_file("table.txt")
         print("Database saved!")
 
     def search_text_window(self):
@@ -2221,7 +2135,17 @@ class MainWindow:
         self.graph_advanced_options = tk.Checkbutton(self.set_translation_frame, variable=self.var_block_tl, onvalue=True, offvalue=False)
         self.graph_advanced_options.grid(row=2,column=1)
 
-        self.message = tk.Label(self.set_translation_frame, text="Translate starting from the line "+str(table_day[cs[0]][4])+" until line "+str(table_day[cs[-1]][4])+"?" if len(cs)>1 else "Translate the line "+str(table_day[cs[0]][4])+"?")
+        self.message = tk.Label(
+            self.set_translation_frame,
+            text=(
+                "Translate starting from the line " +
+                str(table_day[cs[0]].offset_label()) + " until line " +
+                str(table_day[cs[-1]].offset_label()) + "?"
+                if len(cs) > 1
+                else "Translate the line " +
+                str(table_day[cs[0]].offset_label()) + "?"
+            )
+        )
         self.message.grid(row=3,column=0,pady=10)
 
         self.launch_butten = tk.Button(self.set_translation_frame, text="OK", command = self.translate_game)
@@ -2471,6 +2395,8 @@ class MainWindow:
                     self.warning_button = tk.Button(self.warning, text="Back", command = lambda : self.pushed(self.warning))
                     self.warning_button.grid(row=1,column=0,pady=10)
 
-root = tk.Tk()
-deepLuna = StartWindow(root)
-root.mainloop()
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    deepLuna = StartWindow(root)
+    root.mainloop()
