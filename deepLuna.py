@@ -871,6 +871,9 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         entry = translation_table.entry_for_text_offset(offset)
         assert type(entry.jp_mrg_offset) == str
 
+        # Delete the trailing comment if there is one
+        entry.translated_text = entry.translated_text.split('//')[0]
+
         # If this line isn't glued, reset any tracked cursor position
         # There exist some lines thare are 'dead', don't reset cursor pos
         # when we see these
