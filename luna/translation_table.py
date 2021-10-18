@@ -85,8 +85,13 @@ class MergedTranslationTableEntry:
         return '#'.join([e.translated_text for e in self._sub_entries])
 
     def offset_label(self):
-        # If we only contain a single sub-entry, it is just the number
-        return ','.join([str(s) for s in self.offset_list])
+        # Return a comma separated list of contained offsets, with an asterisk
+        # if any enclosed string contains ruby
+        any_has_furigana = any([e.has_ruby for e in self._sub_entries])
+        offsets = ', '.join([str(s) for s in self.offset_list])
+        if any_has_furigana:
+            offsets += "*"
+        return offsets
 
     def is_translated(self):
         return all(e.is_translated() for e in self._sub_entries)
@@ -137,6 +142,13 @@ class TranslationTable:
 
     def string_offsets(self):
         return self._strings_by_offset.keys()
+
+    def hidden_text_lines(self):
+        return [
+            copy.deepcopy(entry) for entry in self._strings_by_offset.values()
+            if len(entry.scene_list) == 1
+            and entry.scene_list[0] == "void"
+        ]
 
     def translated_percent(self):
         total_entries = 0

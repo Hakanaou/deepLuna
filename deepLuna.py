@@ -351,12 +351,13 @@ def export_all(scrTable, mainTable):
 
 
 def gen_day_subtable(dayName, scrTable, mainTable):
+    # If we are loading the hidden text lines, just select all strings with
+    # only the 'void' scene tag
     if dayName == "void":
-        subTable = []
-        for line in mainTable:
-            if len(line[6]) == 1 and line[6][0] == "void":
-                subTable.append(line)
-        return subTable
+        return [
+            MergedTranslationTableEntry([entry])
+            for entry in mainTable.hidden_text_lines()
+        ]
 
     # Find the matching scr table entry for this scene
     page_offsets = scrTable.offsets_for_scene(dayName)
