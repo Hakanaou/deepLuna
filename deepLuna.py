@@ -204,14 +204,28 @@ def remove_ruby_text(line):
     return ret
 
 
+def unicode_aware_len(string):
+    # Certain unicode codepoints render as double-width - account for that here
+    # when calculating the length of a string
+    DOUBLEWIDE_CHARS = set([u"―"])
+    length = 0
+    for c in string:
+        if c in DOUBLEWIDE_CHARS:
+            length += 2
+        else:
+            length += 1
+
+    return length
+
+
 def noruby_len(line):
     # Get the length of a line as if it did not contain any ruby text
     try:
-        return len(remove_ruby_text(line))
+        return unicode_aware_len(remove_ruby_text(line))
     except AssertionError as e:
         # There are non-conformant lines in the current script. Fail gracefully
         print(e)
-        return len(line)
+        return unicode_aware_len(line)
 
 
 def ruby_aware_split_words(line):
