@@ -1193,7 +1193,10 @@ class StartWindow:
             self.translation_window = tk.Toplevel(self.welcome)
 
             #self.translation_window.attributes("-topmost", True)
-            self.translation_window.grab_set()
+            try:
+                self.translation_window.grab_set()
+            except Exception as e:
+                print(e)
 
             self.analysis = MainWindow(self.translation_window, self.table_jp, self.table_scr)
         else:
