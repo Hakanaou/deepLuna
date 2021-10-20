@@ -45,6 +45,12 @@ class TranslationTableEntry:
             f"is_choice={self.is_choice})"
         )
 
+    def is_hidden(self):
+        return (
+            len(self.scene_list) == 1
+            and self.scene_list[0] == "void"
+        )
+
     def serialize(self):
         # Serialize using python literal format
         return str([
@@ -146,8 +152,7 @@ class TranslationTable:
     def hidden_text_lines(self):
         return [
             copy.deepcopy(entry) for entry in self._strings_by_offset.values()
-            if len(entry.scene_list) == 1
-            and entry.scene_list[0] == "void"
+            if entry.is_hidden()
         ]
 
     def translated_percent(self):

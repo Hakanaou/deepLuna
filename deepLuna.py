@@ -881,6 +881,9 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
     # Iterate the lines in the translation table, in order of their offset
     string_offsets = sorted(translation_table.string_offsets())
 
+    # Track whether the previously emitted line was a glued line
+    last_line_was_glued = False
+
     for offset in string_offsets:
         entry = translation_table.entry_for_text_offset(offset)
         assert type(entry.jp_mrg_offset) == str
@@ -888,11 +891,17 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         # Delete the trailing comment if there is one
         entry.translated_text = entry.translated_text.split('//')[0]
 
-        # If this line isn't glued, reset any tracked cursor position
-        # There exist some lines thare are 'dead', don't reset cursor pos
-        # when we see these
-        if not entry.is_glued and entry.is_translated():
-            cursor_position = 0
+        # If this line isn't glued, or is the first glued line of a set,
+        # reset any tracked cursor position
+        # Hidden text should be ignored, since it does not affect the
+        # render state of the lines
+        if not entry.is_hidden():
+            # Reset cursor position if not glued / first glued
+            if not entry.is_glued or not last_line_was_glued:
+                cursor_position = 0
+
+            # Update last glued state
+            last_line_was_glued = entry.is_glued
 
         line_to_inject = None
         if not entry.is_translated():
