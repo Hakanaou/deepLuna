@@ -265,7 +265,7 @@ def ruby_aware_split_words(line):
 
 def add_linebreaks(line, length, start_cursor_pos=0):
     # If the line is already shorter than the desired length, just return
-    if noruby_len(line) < length:
+    if noruby_len(line) + start_cursor_pos < length:
         return(line)
 
     # Split the line into a list of words, where ruby groups as a single word
