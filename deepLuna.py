@@ -1663,7 +1663,10 @@ class MainWindow:
             self.warning.title("deepLuna")
             self.warning.resizable(height=False, width=False)
             self.warning.attributes("-topmost", True)
-            self.warning.grab_set()
+            try:
+                self.warning.grab_set()
+            except Exception as e:
+                print(e)
 
             self.warning_message = tk.Label(self.warning, text="Text inserted successfully!")
             self.warning_message.grid(row=0,column=0,pady=5)
