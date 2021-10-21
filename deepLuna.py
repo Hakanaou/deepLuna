@@ -194,6 +194,7 @@ def remove_ruby_text(line):
             assert seen_midline, "Encountered ruby-end without ruby-delimiter for line '%s'" % line
             processing_ruby = False
             seen_midline = True
+            continue
 
         # If this is a normal character, then append it to the output IFF
         # - We are outside a ruby context _or_
