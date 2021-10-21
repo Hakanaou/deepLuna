@@ -473,7 +473,7 @@ def traverse_updates(path, scr_table, translation_table, jp_script_mrg):
 
                 # Remove after processing
                 os.remove(file_path)
-                print("Imported changes from '%s'" % file_path)
+                # print("Imported changes from '%s'" % file_path)
 
 
 def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_mrg):
@@ -501,7 +501,8 @@ def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_m
 
     # Check whether we have the right number of pages in the scene
     if len(scene_offsets) != len(cleanText):
-        print("Bad number of pages in '%s'" % filename)
+        print("Bad number of pages in '%s' (wanted %d, got %d)" % (
+            filename, len(scene_offsets), len(cleanText)))
         return translation_table
 
     # Initialisation of local variables
@@ -517,7 +518,8 @@ def new_txtfile_update_table(filename, scr_table, translation_table, jp_script_m
 
         # If number of lines on the page doesn't correspond, raise an error
         if len(pageUpdated) != len(cleanText[i]):
-            print('Bad number of lines in %s page %d.' % (filename, i + 1))
+            print("Bad number of lines on '%s' page %d (wanted %d, got %d)" % (
+                filename, i + 1, len(pageUpdated), len(cleanText[i])))
             return translation_table
 
         # We run through the lines of the pages - if they are identical to the
