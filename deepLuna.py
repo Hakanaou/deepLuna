@@ -928,7 +928,8 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
                 charswapped_line, 55, start_cursor_pos=cursor_position)
 
             # Update cursor position with the length of the final line
-            cursor_position = len(broken_line.split('\n')[-1])
+            cursor_position += len(broken_line.split('\n')[-1])
+            cursor_position = cursor_position % 55
 
             # Encode and add trailing \r\n\
             line_to_inject = broken_line.encode("utf-8") + b'\x0D\x0A'
