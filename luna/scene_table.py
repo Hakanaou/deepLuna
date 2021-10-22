@@ -27,7 +27,7 @@ class SceneTable:
             self._scene_to_text_offsets[row[0]] = row[1]
 
     def scene_names(self):
-        return self._scene_to_text_offsets.keys()
+        return [v for v in self._scene_to_text_offsets.keys()]
 
     def offsets_for_scene(self, scene_name):
         return self._scene_to_text_offsets.get(scene_name)

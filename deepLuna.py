@@ -306,7 +306,7 @@ def add_linebreaks(line, length, start_cursor_pos=0):
 
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
-def export_day(dayName,scrTable,mainTable):
+def export_day(dayName, scrTable, mainTable):
 
     mainDir = os.getcwd()
 
@@ -1415,7 +1415,7 @@ class MainWindow:
         self.button_save_line = tk.Button(self.frame_buttons, text="Validate", command=self.validate_line)
         self.button_save_line.grid(row=1, column=1,padx=2)
 
-        self.button_save_file = tk.Button(self.frame_buttons, text="Save", command=self.enregistrer_fichier)
+        self.button_save_file = tk.Button(self.frame_buttons, text="Save", command=self.save_translation_table)
         self.button_save_file.grid(row=1, column=2,padx=2)
 
         self.button_translate_file = tk.Button(self.frame_buttons, text="Translate", command=self.translate_game_window)
@@ -1493,7 +1493,7 @@ class MainWindow:
 
     def save_and_quit(self):
 
-        self.enregistrer_fichier()
+        self.save_translation_table()
 
         self.warning.grab_release()
         self.warning.destroy()
@@ -1584,22 +1584,27 @@ class MainWindow:
 
 
     def export_all_pages(self):
+        # Save the translation table
+        self.save_translation_table()
 
-        self.enregistrer_fichier()
-
-        self.len_export = len(self.table_scr_file)
+        # Get the total number of scenes to export
+        scene_names = self.table_scr_file.scene_names()
+        len_export = len(scene_names)
 
         print("Exporting whole database:")
-        self.start_export = time.time()
-        for self.i in range(self.len_export):
-            export_day(self.table_scr_file[self.i][0],self.table_scr_file,self.table_file)
-            self.progress_export["value"] = floor((self.i+1)/self.len_export*100)
-            self.new_time_exp = datetime.timedelta(seconds=time.time()-self.start_export)
-            self.accum_lines_exp = self.i+1
-            self.remain_time_exp = (self.len_export+1-self.i)*self.new_time_exp/self.accum_lines_exp
-            self.expected_time_exp.set(str(self.remain_time_exp).split('.')[0])
+        start_export = time.time()
+        for i in range(len_export):
+            # Export that day
+            export_day(scene_names[i], self.table_scr_file, self.table_file)
+            # Update the progress indicator
+            self.progress_export["value"] = floor((i+1)/len_export*100)
+            # Estimated completion
+            new_time_exp = datetime.timedelta(seconds=time.time()-start_export)
+            accum_lines_exp = i+1
+            remain_time_exp = (len_export+1-i)*new_time_exp/accum_lines_exp
+            self.expected_time_exp.set(str(remain_time_exp).split('.')[0])
             root.update()
-            print(self.table_scr_file[self.i][0]+".txt exported")
+            print(f"{scene_names[i]}.txt exported")
 
         print("Exporting done!")
 
@@ -1635,7 +1640,7 @@ class MainWindow:
 
         if self.var_swapText.get():
             if swapText:
-                self.enregistrer_fichier()
+                self.save_translation_table()
                 insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg",swapText)
 
                 self.warning = tk.Toplevel(self.dl_editor)
@@ -1655,7 +1660,7 @@ class MainWindow:
 
 
         else:
-            self.enregistrer_fichier()
+            self.save_translation_table()
 
             insert_translation("script_text.mrg","table.txt","script_text_translated"+time.strftime('%Y%m%d-%H%M%S')+".mrg")
 
@@ -1704,7 +1709,7 @@ class MainWindow:
 
         global swapText
 
-        self.enregistrer_fichier()
+        self.save_translation_table()
 
         self.get_swap_text = self.swap_text_zone.get("1.0", tk.END)
         if self.get_swap_text == '':
@@ -1888,7 +1893,7 @@ class MainWindow:
                 self.search_text()
 
 
-    def enregistrer_fichier(self):
+    def save_translation_table(self):
         global search_window_open
         global posSearch
         global searchResults
@@ -2306,7 +2311,7 @@ class MainWindow:
 
 
                 if not self.error:
-                    self.enregistrer_fichier()
+                    self.save_translation_table()
                     self.translation.destroy()
                     self.open_day(False)
                     self.listbox_offsets.see(self.save_cs[-1])
@@ -2324,7 +2329,7 @@ class MainWindow:
                     self.warning_button.grid(row=1,column=0,pady=10)
 
                 else:
-                    self.enregistrer_fichier()
+                    self.save_translation_table()
                     self.translation.destroy()
                     self.open_day(False)
                     self.listbox_offsets.see(self.i)
@@ -2378,7 +2383,7 @@ class MainWindow:
                             print("JP: "+str(table_day[self.k][1]))
                             print(translationLanguage+": "+table_day[self.k][2])
                             self.progress_translate["value"] = floor((self.k-cs[0]+1)/self.len_translation*1000)
-                            #self.enregistrer_fichier()
+                            #self.save_translation_table()
                             self.new_time = datetime.timedelta(seconds=time.time()-self.start)
                             self.accum_lines = self.k-cs[0]+1
                             self.remain_time = (cs[-1]+1-self.k)*self.new_time/self.accum_lines
@@ -2396,7 +2401,7 @@ class MainWindow:
                             print("Encountered error. Stopping the translation...")
 
                 if not self.error:
-                    self.enregistrer_fichier()
+                    self.save_translation_table()
                     self.translation.destroy()
                     self.open_day(False)
                     self.listbox_offsets.see(self.save_cs[-1])
@@ -2414,7 +2419,7 @@ class MainWindow:
                     self.warning_button.grid(row=1,column=0,pady=10)
 
                 else:
-                    self.enregistrer_fichier()
+                    self.save_translation_table()
                     self.translation.destroy()
                     self.open_day(False)
                     self.listbox_offsets.see(self.save_cs[0])
