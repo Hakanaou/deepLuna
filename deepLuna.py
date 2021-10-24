@@ -927,9 +927,25 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
             broken_line = add_linebreaks(
                 charswapped_line, 55, start_cursor_pos=cursor_position)
 
+            # print(
+            #     f"{offset}: Start cursor pos {cursor_position}, "
+            #     f"broken line: {broken_line}")
+
             # Update cursor position with the length of the final line
-            cursor_position += len(broken_line.split('\n')[-1])
-            cursor_position = cursor_position % 55
+            # If the broken line is only a single line, increment cursor pos
+            # If it is _multiple_ lines, then we only count the len of the
+            # final line
+            did_break_line = len(broken_line.split('\n')) > 1
+            final_broken_line = broken_line.split('\n')[-1]
+            if did_break_line:
+                cursor_position = noruby_len(final_broken_line)
+            else:
+                cursor_position += noruby_len(final_broken_line)
+                cursor_position = cursor_position % 55
+
+            # print(
+            #     f"{offset}: Last line: {final_broken_line} "
+            #     f"New cursor position: {cursor_position}")
 
             # Encode and add trailing \r\n\
             line_to_inject = broken_line.encode("utf-8") + b'\x0D\x0A'
