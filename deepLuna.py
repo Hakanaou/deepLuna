@@ -1256,7 +1256,7 @@ class Informations:
         information.geometry("400x150")
         information.resizable(height=False, width=False)
 
-        self.nom = tk.Label(information, text ="deepLuna v3.1.1 — 18/10/2021\nDeveloped by Hakanaou and R.Schlaikjer\n", justify=tk.CENTER, borderwidth=10)
+        self.nom = tk.Label(information, text ="deepLuna v3.1.2 — 18/10/2021\nDeveloped by Hakanaou and R.Schlaikjer\n", justify=tk.CENTER, borderwidth=10)
         self.nom.pack()
 
         self.explanations = tk.Button(information, text="deepLuna GitHub", command=self.callback)
