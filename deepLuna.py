@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ### Import packages
 import ast
 import contextlib
