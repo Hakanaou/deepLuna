@@ -889,6 +889,9 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
     # Track whether the previously emitted line was a glued line
     last_line_was_glued = False
 
+    # What is the last page for the previous entry?
+    last_page_number = -1
+
     for offset in string_offsets:
         entry = translation_table.entry_for_text_offset(offset)
         assert type(entry.jp_mrg_offset) == str
@@ -900,13 +903,16 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         # reset any tracked cursor position
         # Hidden text should be ignored, since it does not affect the
         # render state of the lines
-        if not entry.is_hidden():
-            # Reset cursor position if not glued / first glued
-            if not entry.is_glued or not last_line_was_glued:
+        # QA lines are excepted from this, since we handle those differently
+        if not entry.is_hidden() and not entry.scene_list[0][:2] == 'QA':
+            # Reset cursor position
+            # - This line isn't glued
+            # - It is glued, but it's the first line in a glue group
+            # - It's glued, but it's the first line on a new page
+            if not entry.is_glued \
+                    or not last_line_was_glued \
+                    or entry.page_number != last_page_number:
                 cursor_position = 0
-
-            # Update last glued state
-            last_line_was_glued = entry.is_glued
 
         line_to_inject = None
         if not entry.is_translated():
@@ -914,12 +920,60 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
             charswapped_line = swap_characters_line(entry.jp_text, swap)
             line_to_inject = charswapped_line.encode("utf-8") + b'\x0D\x0A'
         elif entry.scene_list[0][:2] == 'QA':
-            # If this is a Ciel Sensei segment, we don't add a finale \r\n
-            line_to_inject = add_linebreaks(
-                swap_characters_line(entry.translated_text, swap),
-                55,
-                start_cursor_pos=cursor_position
-            ).encode("utf-8")
+            # Replace any custom character sets
+            charswapped_line = \
+                swap_characters_line(entry.translated_text, swap)
+
+            # If this is a fresh page, reset the cursor position
+            # Otherwise, we treat _all_ QA lines as glued
+            if entry.page_number != last_page_number:
+                cursor_position = 0
+
+            # Insert linebreaks. We don't break on character counting, but based
+            # on control codes in the script. %{@n}
+            broken_line = ""
+            has_pct = False  # Did we see a % that might open a cc
+            in_cc = False  # Are we inside a control code segment
+            for c in charswapped_line:
+                # Handle control mode entry / exit
+                if c == '%':
+                    has_pct = True
+                    continue
+                if has_pct and c == '{':
+                    in_cc = True
+                    has_pct = False
+                    continue
+                if in_cc and c == '}':
+                    in_cc = False
+                    continue
+
+                # Non-control mode: just append character to output buffer
+                if not in_cc:
+                    broken_line += c
+                    continue
+
+                # CC mode: handle characters
+                if c == 'n':
+                    broken_line += "\n"
+                    continue
+
+                assert False, f"Unknown control code '{c}'"
+
+            # New cursor position is length of final line of broken line
+            did_break_line = len(broken_line.split('\n')) > 1
+            final_broken_line = broken_line.split('\n')[-1]
+            if did_break_line:
+                cursor_position = noruby_len(final_broken_line)
+            else:
+                cursor_position += noruby_len(final_broken_line)
+
+            # print(
+            #     f"{offset}: Last line: {final_broken_line} "
+            #     f"New cursor position: {cursor_position}")
+
+            # Encode and add trailing \r\n\
+            line_to_inject = broken_line.encode("utf-8") + b'\x0D\x0A'
+
         else:  # Normal case
             # Replace any custom character sets
             charswapped_line = \
@@ -957,6 +1011,10 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         totalLenText = add_zeros(
             hexsum(totalLenText, hex(len(line_to_inject)))[2:])
         bytesNewPointers += bytes.fromhex(totalLenText)
+
+        # Update tracking state
+        last_line_was_glued = entry.is_glued
+        last_page_number = entry.page_number
 
     bytesListTLText = bytesListTLText[:-2]
     bytesNewPointers = bytesNewPointers[:-4] + bytesNewPointers[-8:-4] + 12*b'\xFF'
