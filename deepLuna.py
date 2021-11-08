@@ -309,20 +309,15 @@ def add_linebreaks(line, length, start_cursor_pos=0):
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
 def export_day(dayName, scrTable, mainTable):
-
-    mainDir = os.getcwd()
-
-    if os.path.exists("export"):
-        os.chdir('export/')
-    else:
+    if not os.path.exists("export"):
         os.mkdir('export')
-        os.chdir('export/')
 
     # Get the list of text offsets for this scene
     offset_list = scrTable.offsets_for_scene(dayName)
 
     # Open the output file
-    day_export = open(dayName+".txt", "wb+")
+    filename = dayName + ".txt"
+    day_export = open(os.path.join('export', filename), "wb+")
 
     dayStr = ''
 
@@ -354,8 +349,6 @@ def export_day(dayName, scrTable, mainTable):
 
     day_export.write(dayStr[:-1].encode('utf-8'))
     day_export.close()
-
-    os.chdir(mainDir)
 
 
 def export_all(scrTable, mainTable):
