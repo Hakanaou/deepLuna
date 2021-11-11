@@ -1496,7 +1496,7 @@ class MainWindow:
         self.button_search_text = tk.Button(self.frame_buttons, text="Search", command=self.search_text_window)
         self.button_search_text.grid(row=1, column=5,padx=2)
 
-        self.button_export_page = tk.Button(self.frame_buttons, text="Export page", command=self.export_page)
+        self.button_export_page = tk.Button(self.frame_buttons, text="Export scene", command=self.export_page)
         self.button_export_page.grid(row=1, column=6,padx=2)
 
         self.button_export_all = tk.Button(self.frame_buttons, text="Export all", command=self.export_all_pages_window)
