@@ -347,7 +347,7 @@ def export_day(dayName, scrTable, mainTable):
             else:
                 dayStr += (extrLine+'\n')
 
-    day_export.write(dayStr[:-1].encode('utf-8'))
+    day_export.write(dayStr.encode('utf-8'))
     day_export.close()
 
 
