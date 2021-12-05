@@ -892,7 +892,13 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         assert type(entry.jp_mrg_offset) == str
 
         # Delete the trailing comment if there is one
-        entry.translated_text = entry.translated_text.split('//')[0]
+        translation = entry.translated_text.split('//')[0]
+
+        # Somtimes people put a space before the comment, so strip any trailing
+        # whitespace on the right hand side of the line
+        # Leave any whitespace on the left side, since we use that for manually
+        # aligning QA text
+        translation = translation.rstrip()
 
         # If this line isn't glued, or is the first glued line of a set,
         # reset any tracked cursor position
@@ -917,7 +923,7 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         elif entry.scene_list[0][:2] == 'QA':
             # Replace any custom character sets
             charswapped_line = \
-                swap_characters_line(entry.translated_text, swap)
+                swap_characters_line(translation, swap)
 
             # If this is a fresh page, reset the cursor position
             # Otherwise, we treat _all_ QA lines as glued
@@ -972,7 +978,7 @@ def insert_translation(scriptFile, translation_table_filename, scriptFileTransla
         else:  # Normal case
             # Replace any custom character sets
             charswapped_line = \
-                    swap_characters_line(entry.translated_text, swap)
+                    swap_characters_line(translation, swap)
 
             # Insert linebreaks
             broken_line = add_linebreaks(
