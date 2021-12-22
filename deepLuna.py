@@ -254,6 +254,14 @@ def ruby_aware_split_words(line):
             acc = ""
             continue
 
+        # If we see a newline literal, count that as a 'word'
+        if c == '\n' and not processing_ruby:
+            if acc:
+                ret.append(acc)
+            ret.append('\n')
+            acc = ""
+            continue
+
         # If this is not a space, or is a space but we are inside a ruby group,
         # append to current word accumulator.
         acc = acc + c
@@ -265,7 +273,44 @@ def ruby_aware_split_words(line):
     return ret
 
 
+def apply_control_codes(line):
+    # Insert linebreaks. We don't break on character counting, but based
+    # on control codes in the script. %{@n}
+    ret = ""
+    has_pct = False  # Did we see a % that might open a cc
+    in_cc = False  # Are we inside a control code segment
+    for c in line:
+        # Handle control mode entry / exit
+        if c == '%':
+            has_pct = True
+            continue
+        if has_pct and c == '{':
+            in_cc = True
+            has_pct = False
+            continue
+        if in_cc and c == '}':
+            in_cc = False
+            continue
+
+        # Non-control mode: just append character to output buffer
+        if not in_cc:
+            ret += c
+            continue
+
+        # CC mode: handle characters
+        if c == 'n':
+            ret += "\n"
+            continue
+
+        assert False, f"Unknown control code '{c}'"
+
+    return ret
+
+
 def add_linebreaks(line, length, start_cursor_pos=0):
+    # Apply any control code modifiers to the line
+    line = apply_control_codes(line)
+
     # If the line is already shorter than the desired length, just return
     if noruby_len(line) + start_cursor_pos < length:
         return(line)
@@ -278,33 +323,32 @@ def add_linebreaks(line, length, start_cursor_pos=0):
     if length < max([noruby_len(elem) for elem in splitLine]):
         return(line)
 
-    # Actually break the line.
-    i = 0
-    listPos = []
-    while i < len(splitLine):
-        # Initialize the current length of the accumulated line
-        # in the event that we are working on a glued sentence
-        cumulLen = start_cursor_pos
-        start_cursor_pos = 0
-        while cumulLen <= length and i < len(splitLine):
-            cumulLen += (noruby_len(splitLine[i])+1)
-            if cumulLen <= length:
-                i += 1
-            elif cumulLen == length+1:
-                i += 1
-                listPos.append(i)
-                break
-            else:
-                listPos.append(i)
-                break
+    broken_lines = []
+    acc = ""
+    for word in splitLine:
+        # If adding the next word would overflow, break the line.
+        if len(acc + ' ' + word) + start_cursor_pos > length:
+            broken_lines.append(acc)
+            acc = word
+            start_cursor_pos = 0
+            continue
 
-    for i in range(len(listPos)):
-        splitLine.insert(listPos[i]+i, '\n')
+        # If we run into a raw \n, that directly breaks the line
+        if word == '\n':
+            broken_lines.append(acc)
+            acc = ""
+            start_cursor_pos = 0
+            continue
 
-    returnLine = ' '.join(splitLine)
-    returnLine = re.sub(r"( \n )|( \n)", r"\n", returnLine)
-    returnLine = returnLine[:-1] if returnLine[-1] == '\n' else returnLine
-    return returnLine
+        # If we did't just break, then append this word to the line
+        acc = acc + ' ' + word if acc else word
+
+    if acc:
+        broken_lines.append(acc)
+
+    # Join our line fragments back together with \n
+    ret = '\n'.join(broken_lines)
+    return ret
 
 
 #dayName: name of day file, scrTable: table of pointer (from allscr.mrg) (not file!), mainTable: main database (not file!)
