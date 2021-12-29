@@ -1,6 +1,9 @@
 import hashlib
 import json
+import multiprocessing
+import re
 import struct
+import sys
 
 from luna.mrg_parser import Mzp
 from luna.mzx import Mzx
@@ -26,11 +29,29 @@ class TranslationDb:
         self._hash_by_offset = hash_by_offset
         self._line_by_hash = line_by_hash
 
+    def as_json(self):
+        return json.dumps({
+            'scene_map': self._scene_map,
+            'hash_by_offset': self._hash_by_offset,
+            'line_by_hash': {
+                k: v.as_json() for k, v in self._line_by_hash.items()
+            }
+        })
+
+    @classmethod
+    def from_json(cls, jsonb):
+        scene_map = jsonb['scene_map']
+        hash_by_offset = jsonb['hash_by_offset']
+        line_by_hash = {
+            k: cls.TLLine.from_json(v) for k, v in jsonb['line_by_hash'].items()
+        }
+        return cls(scene_map, hash_by_offset, line_by_hash)
+
     @classmethod
     def from_file(cls, path):
         with open(path, 'rb') as input_file:
             raw_db = input_file.read()
-        data = json.loads(raw_db)
+        return cls.from_json(json.loads(raw_db))
 
     @classmethod
     def from_mrg(cls, allscr_path, script_text_path):
@@ -77,18 +98,79 @@ class TranslationDb:
         compressed_script_files = allscr_mzp.data[3:]
 
         # Decompress all the script files
-        decompressed_script_files = [
-            Mzx.decompress(f) for f in compressed_script_files
-        ]
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            decompressed_script_files = pool.map(
+                Mzx.decompress,
+                compressed_script_files
+            )
 
         # For each scene, extract the list of text offsets
+        scene_map = {}
         for scene_name, script \
                 in zip(script_names, decompressed_script_files):
-            print(scene_name, script,)
+            # Split script into commands
+            raw_cmds = [
+                cmd.strip() for cmd in script.decode('utf-8').split(';')
+                if cmd.strip()
+            ]
 
-        scene_map = {}  # TODO
+            # Regex to parse command name/args
+            command_regex = re.compile(
+                r"_(\w+)\(([\w 　a-zA-Z0-9-,`@$:.+^_]*)\)\Z")
+
+            # Parse each script command
+            script_commands = []
+            for cmd in raw_cmds:
+                # Try and match regex
+                match = command_regex.match(cmd)
+                if not match:
+                    sys.stderr.write(f"Failed to parse command {cmd}\n")
+                    continue
+
+                groups = match.groups()
+                script_commands.append(
+                    cls.AllscrCmd(groups[0])
+                    if len(groups) == 1
+                    else cls.AllscrCmd(groups[0], groups[1].split(','))
+                )
+
+            # Now iterate the script commands and extract any that reference
+            # script lines
+            text_offsets = []
+            for cmd in script_commands:
+                # If it's not a text scripting command, ignore
+                is_zm = cmd.opcode.startswith('ZM')
+                is_msad = cmd.opcode == 'MSAD'
+                is_selr = cmd.opcode == 'SELR'
+                if not any([is_zm, is_msad, is_selr]):
+                    continue
+
+                # If it has no arguments, ignore
+                if not cmd.arguments:
+                    continue
+
+                # If it does have args, match all instances of text references
+                for arg in cmd.arguments:
+                    text_refs = re.compile(r"(\$\d+)").findall(arg)
+                    text_offsets += [int(ref[1:]) for ref in text_refs]
+
+            scene_map[scene_name] = text_offsets
 
         return cls(scene_map, content_hash_by_offset, strings_by_content_hash)
+
+    class AllscrCmd:
+        def __init__(self, opcode, arguments=None):
+            # Opcode is the text keyword for this command, e.g. WKST or PGST
+            # This is stored WITHOUT leading underscore
+            self.opcode = opcode
+
+            # Arguments is a list of string encoded arguments to this command
+            # Arguments must be joined by commas when packing scripts
+            self.arguments = arguments
+
+        def __repr__(self):
+            # Convert a script command to a string for emission
+            return "_%s(%s);" % (self.opcode, ','.join(self.arguments or []))
 
     class TLScene:
         def __init__(self, scene_name, content_hashes):
@@ -108,7 +190,7 @@ class TranslationDb:
     class TLLine:
         def __init__(self, jp_text, en_text=None, comment=None,
                      has_ruby=False, is_glued=False, is_choice=False):
-            self._content_hash = hashlib.sha1(jp_text.encode('utf-8'))
+            self._content_hash = hashlib.sha1(jp_text.encode('utf-8')).hexdigest()
             self._jp_text = jp_text
             self._en_text = en_text
             self._comment = comment
@@ -122,7 +204,6 @@ class TranslationDb:
         @classmethod
         def from_json(cls, jsonb):
             return cls(
-                jsonb.get('content_hash'),
                 jsonb.get('jp_text'),
                 jsonb.get('en_text', None),
                 jsonb.get('comment', None),
