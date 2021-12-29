@@ -3,6 +3,7 @@ import json
 import struct
 
 from luna.mrg_parser import Mzp
+from luna.mzx import Mzx
 
 class TranslationDb:
     """
@@ -20,10 +21,16 @@ class TranslationDb:
             and any additional comments or context left by translators
     """
 
-    def __init__(self, path):
+    def __init__(self, scene_map, hash_by_offset, line_by_hash):
+        self._scene_map = scene_map
+        self._hash_by_offset = hash_by_offset
+        self._line_by_hash = line_by_hash
+
+    @classmethod
+    def from_file(cls, path):
         with open(path, 'rb') as input_file:
             raw_db = input_file.read()
-        self._data = json.loads(raw_db)
+        data = json.loads(raw_db)
 
     @classmethod
     def from_mrg(cls, allscr_path, script_text_path):
@@ -54,6 +61,34 @@ class TranslationDb:
             tl_line = cls.TLLine(jp_text)
             content_hash_by_offset[offset] = tl_line.content_hash()
             strings_by_content_hash[tl_line.content_hash()] = tl_line
+
+        # Parse the scene map from allscr
+        allscr_mzp = Mzp(allscr_path)
+
+        # Zeroth entry is the script filenames. Each 32 byte chunk is one
+        # string, delete excess \0 chars and arrayize
+        script_nam_raw = allscr_mzp.data[0]
+        script_names = [
+            script_nam_raw[i:i + 32].decode('utf-8').replace('\0', '').strip()
+            for i in range(0, len(script_nam_raw), 32)
+        ]
+
+        # Entries 1/2 are unknown, 3+ are the game script files
+        compressed_script_files = allscr_mzp.data[3:]
+
+        # Decompress all the script files
+        decompressed_script_files = [
+            Mzx.decompress(f) for f in compressed_script_files
+        ]
+
+        # For each scene, extract the list of text offsets
+        for scene_name, script \
+                in zip(script_names, decompressed_script_files):
+            print(scene_name, script,)
+
+        scene_map = {}  # TODO
+
+        return cls(scene_map, content_hash_by_offset, strings_by_content_hash)
 
     class TLScene:
         def __init__(self, scene_name, content_hashes):
