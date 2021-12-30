@@ -153,6 +153,7 @@ class TranslationDb:
                 for arg in cmd.arguments:
                     text_refs = re.compile(r"(\$\d+)").findall(arg)
                     text_offsets += [int(ref[1:]) for ref in text_refs]
+                    # TODO(ross): Store glue attribute
 
             scene_map[scene_name] = text_offsets
 
