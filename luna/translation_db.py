@@ -13,39 +13,40 @@ class TranslationDb:
     Consolidated storage for translation information.
     The DB stores 2 main groups of data:
         - The scene table:
-            A map of scene name (string) to list of string offsets (int) into
-            the script_text mrg.
-        - The proxy table:
-            A map of MRG string offset to content hash. If the game is updated,
-            only this and the scene table need to be re-generated, and already
-            translated lines may be re-associated by hash.
+            A map of scene name (string) to list of text emission command
+            information read from the allscr. These data contain the context
+            of the line (choice, glue) as well as the MRG offset and hash of
+            the JP text.
         - Content-addressed strings:
             Each JP text line, indexed by hash, associated with a translation
             and any additional comments or context left by translators
     """
 
-    def __init__(self, scene_map, hash_by_offset, line_by_hash):
+    def __init__(self, scene_map, line_by_hash):
         self._scene_map = scene_map
-        self._hash_by_offset = hash_by_offset
         self._line_by_hash = line_by_hash
 
     def as_json(self):
         return json.dumps({
-            'scene_map': self._scene_map,
-            'hash_by_offset': self._hash_by_offset,
+            'scene_map': {
+                k: [e.as_json() for e in v]
+                for k, v in self._scene_map.items()
+            },
             'line_by_hash': {
                 k: v.as_json() for k, v in self._line_by_hash.items()
             }
-        })
+        }, sort_keys=True, indent=2)
 
     @classmethod
     def from_json(cls, jsonb):
-        scene_map = jsonb['scene_map']
-        hash_by_offset = jsonb['hash_by_offset']
+        scene_map = {
+            k: [cls.TextCommand.from_json(e) for e in v]
+            for k, v in jsonb['scene_map']
+        }
         line_by_hash = {
             k: cls.TLLine.from_json(v) for k, v in jsonb['line_by_hash'].items()
         }
-        return cls(scene_map, hash_by_offset, line_by_hash)
+        return cls(scene_map, line_by_hash)
 
     @classmethod
     def from_file(cls, path):
@@ -152,12 +153,74 @@ class TranslationDb:
                 # If it does have args, match all instances of text references
                 for arg in cmd.arguments:
                     text_refs = re.compile(r"(\$\d+)").findall(arg)
-                    text_offsets += [int(ref[1:]) for ref in text_refs]
-                    # TODO(ross): Store glue attribute
+                    text_modifiers = re.compile(r"(\@\w)").findall(arg)
+                    offsets = [int(ref[1:]) for ref in text_refs]
+                    for offset in offsets:
+                        # Glue if the previous line ends in an @n
+                        jp_line = strings_by_content_hash[content_hash_by_offset[offset]]
+                        jp_text = jp_line._jp_text
+                        jp_hash = hashlib.sha1(jp_text.encode('utf-8')).hexdigest()
+                        is_glued = bool(text_offsets) and bool('@n' in text_offsets[-1].modifiers)
+                        has_ruby = '<' in jp_text
+                        text_offsets.append(cls.TextCommand(
+                            offset, jp_hash, has_ruby, is_glued,
+                            is_choice=is_selr,
+                            modifiers=text_modifiers
+                        ))
 
             scene_map[scene_name] = text_offsets
 
-        return cls(scene_map, content_hash_by_offset, strings_by_content_hash)
+        return cls(scene_map, strings_by_content_hash)
+
+
+    class TextCommand:
+        def __init__(self, offset, jp_hash, has_ruby=False, is_glued=False,
+                     is_choice=False, modifiers=None):
+            self.offset = offset
+            self.jp_hash = jp_hash
+            self.has_ruby = has_ruby
+            self.is_glued = is_glued
+            self.is_choice = is_choice
+            self.modifiers = modifiers or []
+
+        @classmethod
+        def from_json(cls, jsonb):
+            return cls(
+                jsonb['offset'],
+                jsonb['jp_hash'],
+                jsonb.get('has_ruby', False),
+                jsonb.get('is_glued', False),
+                jsonb.get('is_choice', False),
+                jsonb.get('modifiers')
+            )
+
+        def as_json(self):
+            ret = {
+                'offset': self.offset,
+                'jp_hash': self.jp_hash,
+            }
+
+            # Only include non-default flags to keep the db cleaner
+            if self.has_ruby:
+                ret['has_ruby'] = True
+
+            if self.is_glued:
+                ret['is_glued'] = True
+
+            if self.is_choice:
+                ret['is_choice'] = True
+
+            if self.modifiers:
+                ret['modifiers'] = self.modifiers
+
+            return ret
+
+        def __repr__(self):
+            return (
+                f"TextCommand: {self.offset} {self.jp_hash} {self.has_ruby} "
+                f"{self.is_glued} {self.is_choice} {self.modifiers}"
+            )
+
 
     class AllscrCmd:
         def __init__(self, opcode, arguments=None):
@@ -189,44 +252,25 @@ class TranslationDb:
             }
 
     class TLLine:
-        def __init__(self, jp_text, en_text=None, comment=None,
-                     has_ruby=False, is_glued=False, is_choice=False):
-            self._content_hash = hashlib.sha1(jp_text.encode('utf-8')).hexdigest()
+        def __init__(self, jp_text, en_text=None, comment=None):
             self._jp_text = jp_text
             self._en_text = en_text
             self._comment = comment
-            self._has_ruby = has_ruby
-            self._is_glued = is_glued
-            self._is_choice = is_choice
 
         def content_hash(self):
-            return self._content_hash
+            return hashlib.sha1(self._jp_text.encode('utf-8')).hexdigest()
 
         @classmethod
         def from_json(cls, jsonb):
-            # Sanity check the input json
-            json_jp = jsonb.get('jp_text')
-            json_hash = jsonb.get('content_hash')
-            digest = hashlib.sha1(json_jp.encode('utf-8')).hexdigest()
-            assert json_hash == digest, f"JSON digest {json_hash} invalid for JP text {json_jp} (expected {digest})"
-
-            # Wrap and return
             return cls(
                 jsonb.get('jp_text'),
                 jsonb.get('en_text', None),
                 jsonb.get('comment', None),
-                jsonb.get('has_ruby', False),
-                jsonb.get('is_glued', False),
-                jsonb.get('is_choice', False),
             )
 
         def as_json(self):
             return {
-                'content_hash': self._content_hash,
                 'jp_text': self._jp_text,
                 'en_text': self._en_text,
                 'comment': self._comment,
-                'has_ruby': self._has_ruby,
-                'is_glued': self._is_glued,
-                'is_choice': self._is_choice,
             }
