@@ -107,6 +107,7 @@ class TranslationDb:
 
         # For each scene, extract the list of text offsets
         scene_map = {}
+        visited_offsets = set()
         for scene_name, script \
                 in zip(script_names, decompressed_script_files):
             # Split script into commands
@@ -165,18 +166,29 @@ class TranslationDb:
                         # Glue if the previous line ends in an @n
                         jp_line = strings_by_content_hash[content_hash_by_offset[offset]]
                         jp_text = jp_line._jp_text
-                        jp_hash = hashlib.sha1(jp_text.encode('utf-8')).hexdigest()
                         is_glued = bool(text_offsets) and bool('@n' in text_offsets[-1].modifiers)
                         has_ruby = '<' in jp_text
                         text_offsets.append(cls.TextCommand(
-                            offset, jp_hash, page_number,
+                            offset, content_hash_by_offset[offset], page_number,
                             has_ruby=has_ruby,
                             is_glued=is_glued,
                             is_choice=is_selr,
                             modifiers=text_modifiers
                         ))
+                        visited_offsets.add(offset)
 
             scene_map[scene_name] = text_offsets
+
+        # Reparent any text lines that exist but aren't referenced by the
+        # allscr scripts
+        orphan_lines = []
+        for offset, sha in content_hash_by_offset.items():
+            if offset in visited_offsets:
+                continue
+
+            orphan_lines.append(cls.TextCommand(offset, sha, -1))
+
+        scene_map['ORPHANED_LINES'] = orphan_lines
 
         return cls(scene_map, strings_by_content_hash)
 
