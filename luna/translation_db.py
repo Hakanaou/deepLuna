@@ -203,6 +203,13 @@ class TranslationDb:
 
         @classmethod
         def from_json(cls, jsonb):
+            # Sanity check the input json
+            json_jp = jsonb.get('jp_text')
+            json_hash = jsonb.get('content_hash')
+            digest = hashlib.sha1(json_jp.encode('utf-8')).hexdigest()
+            assert json_hash == digest, f"JSON digest {json_hash} invalid for JP text {json_jp} (expected {digest})"
+
+            # Wrap and return
             return cls(
                 jsonb.get('jp_text'),
                 jsonb.get('en_text', None),
