@@ -138,7 +138,13 @@ class TranslationDb:
             # Now iterate the script commands and extract any that reference
             # script lines
             text_offsets = []
+            page_number = 0
             for cmd in script_commands:
+                # If it's a PGST, take argv0 the page counter
+                if cmd.opcode == 'PGST':
+                    page_number = int(cmd.arguments[0])
+                    continue
+
                 # If it's not a text scripting command, ignore
                 is_zm = cmd.opcode.startswith('ZM')
                 is_msad = cmd.opcode == 'MSAD'
@@ -163,7 +169,9 @@ class TranslationDb:
                         is_glued = bool(text_offsets) and bool('@n' in text_offsets[-1].modifiers)
                         has_ruby = '<' in jp_text
                         text_offsets.append(cls.TextCommand(
-                            offset, jp_hash, has_ruby, is_glued,
+                            offset, jp_hash, page_number,
+                            has_ruby=has_ruby,
+                            is_glued=is_glued,
                             is_choice=is_selr,
                             modifiers=text_modifiers
                         ))
@@ -174,10 +182,11 @@ class TranslationDb:
 
 
     class TextCommand:
-        def __init__(self, offset, jp_hash, has_ruby=False, is_glued=False,
-                     is_choice=False, modifiers=None):
+        def __init__(self, offset, jp_hash, page_number, has_ruby=False,
+                     is_glued=False, is_choice=False, modifiers=None):
             self.offset = offset
             self.jp_hash = jp_hash
+            self.page_number = page_number
             self.has_ruby = has_ruby
             self.is_glued = is_glued
             self.is_choice = is_choice
@@ -188,6 +197,7 @@ class TranslationDb:
             return cls(
                 jsonb['offset'],
                 jsonb['jp_hash'],
+                jsonb['page_number'],
                 jsonb.get('has_ruby', False),
                 jsonb.get('is_glued', False),
                 jsonb.get('is_choice', False),
@@ -198,6 +208,7 @@ class TranslationDb:
             ret = {
                 'offset': self.offset,
                 'jp_hash': self.jp_hash,
+                'page_number': self.page_number,
             }
 
             # Only include non-default flags to keep the db cleaner
