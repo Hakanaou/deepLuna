@@ -188,7 +188,7 @@ class TranslationDb:
                     for offset in offsets:
                         # Glue if the previous line ends in an @n
                         jp_line = strings_by_content_hash[content_hash_by_offset[offset]]
-                        jp_text = jp_line._jp_text
+                        jp_text = jp_line.jp_text
                         is_glued = bool(text_offsets) and bool('@n' in text_offsets[-1].modifiers)
                         has_ruby = '<' in jp_text
                         text_offsets.append(cls.TextCommand(
