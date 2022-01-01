@@ -1,3 +1,4 @@
+from functools import cmp_to_key
 import tkinter as tk
 from tkinter.ttk import (
     Style,
@@ -78,22 +79,40 @@ class TranslationWindow:
         warning_message.grid(row=0, column=0, pady=5)
 
         # Buttons
-        frame_quit_buttons = tk.Frame(self._warning, borderwidth=2)
+        self.frame_quit_buttons = tk.Frame(self._warning, borderwidth=2)
         quit_and_save_button = tk.Button(
-            frame_quit_buttons,
+            self.frame_quit_buttons,
             text="Save and Quit",
             width=15,
             command=self.save_and_quit
         )
         quit_and_save_button.grid(row=0, column=0, padx=5, pady=10)
         quit_button = tk.Button(
-            frame_quit_buttons,
+            self.frame_quit_buttons,
             text="Quit",
             width=15,
             command=self.quit_editor
         )
         quit_button.grid(row=0, column=1, padx=5, pady=10)
-        frame_quit_buttons.grid(row=1, column=0, pady=5)
+        self.frame_quit_buttons.grid(row=1, column=0, pady=5)
+
+    def save_and_quit(self):
+        # Save DB
+        with open(Constants.DATABASE_PATH, 'wb+') as output:
+            output.write(self._translation_db.as_json().encode('utf-8'))
+
+        # Exit
+        self.quit_editor()
+
+    def close_warning(self):
+        if self._warning:
+            self._warning.grab_release()
+            self._warning.destroy()
+            self._warning = None
+
+    def quit_editor(self):
+        self.close_warning()
+        self._root.destroy()
 
     def init_tl_line_view(self):
         self.text_frame = tk.Frame(self.frame_editing, borderwidth=20)
@@ -269,6 +288,73 @@ class TranslationWindow:
 
         self.line_selector_frame.pack(side=tk.LEFT)
 
+    @staticmethod
+    def compare_scenes(in_a, in_b):
+        """
+        Compare function for scene names that sorts integer fragments properly.
+        """
+        def decimal_extract(val):
+            ret = []
+            is_chr = True
+            acc = ""
+            for c in val:
+                if '0' <= c and c <= '9':
+                    # If there was a character acc, append it
+                    if is_chr and acc:
+                        ret.append(acc)
+                        acc = ""
+
+                    # Now in non-char acc mode
+                    is_chr = False
+                    acc += c
+                else:
+                    # If there was a non-char acc, apend it
+                    if not is_chr and acc:
+                        ret.append(int(acc))
+                        acc = ""
+
+                    # Now in char mode
+                    is_chr = True
+                    acc += c
+
+            # Handle trailing acc value
+            if acc:
+                ret.append(acc if is_chr else int(acc))
+
+            return ret
+
+        scene_a = decimal_extract(in_a)
+        scene_b = decimal_extract(in_b)
+
+        i = 0
+        for i in range(max(len(scene_a), len(scene_b))):
+            # Longer is greater
+            if i >= len(scene_a):
+                return -1
+            if i >= len(scene_b):
+                return 1
+
+            # If the types match, direct compare
+            val_a = scene_a[i]
+            val_b = scene_b[i]
+            if type(val_a) is type(val_b):
+                if val_a < val_b:
+                    return -1
+                if val_a > val_b:
+                    return 1
+            else:
+                # If the types don't match, compare on the lex order of
+                # type names
+                type_a_name = str(type(val_a))
+                type_b_name = str(type(val_b))
+                if type_a_name < type_b_name:
+                    return -1
+                if type_a_name > type_b_name:
+                    return 1
+
+        # If we get all the way here, they are equal
+        return 0
+
     def init_scene_selector_tree(self):
         self.frame_tree = tk.Frame(self.frame_editing, borderwidth=20)
         self.scene_tree = Treeview(
@@ -281,23 +367,69 @@ class TranslationWindow:
 
         # Add all of the scene names to the treeview
         scene_names = self._translation_db.scene_names()
-        ciel_scenes = [name for name in scene_names if 'CIEL' in name]
-        arc_scenes = [name for name in scene_names if 'ARC' in name]
+        ciel_scenes = [name for name in scene_names if '_CIEL' in name]
+        arc_scenes = [name for name in scene_names if '_ARC' in name]
         qa_scenes = [name for name in scene_names if 'QA' in name]
         misc_scenes = [
             name for name in scene_names
             if name not in set(ciel_scenes + arc_scenes + qa_scenes)]
 
-        scene_idx = 0
-        for name in scene_names:
+        # Create top level categories
+        categories = [
+            ('Arcueid', 'arc'),
+            ('Ciel', 'ciel'),
+            ('QA', 'qa'),
+            ('Misc', 'misc'),
+        ]
+        for category_name, category_id in categories:
             self.scene_tree.insert(
                 '',
                 tk.END,
-                text=name,
-                iid=scene_idx,
+                text=category_name,
+                iid=category_id,
                 open=False
             )
-            scene_idx += 1
+
+        # Helper fun to add arc/ciel scenes, which are by-day
+        def insert_day_scene_tree(root, scene_names):
+            # Create day holders
+            day_names = sorted(list(set([v.split('_')[0] for v in scene_names])))
+            for day in day_names:
+                self.scene_tree.insert(
+                    root,
+                    tk.END,
+                    text=f"Day {day}",
+                    iid=f"{root}_{day}",
+                    open=False
+                )
+
+            # Add arc scenes to appropriate days
+            for scene in sorted(scene_names, key=cmp_to_key(self.compare_scenes)):
+                scene_day = scene.split('_')[0]
+                self.scene_tree.insert(
+                    f"{root}_{scene_day}",
+                    tk.END,
+                    text=scene,
+                    iid=scene,
+                    open=False
+                )
+
+        insert_day_scene_tree('arc', arc_scenes)
+        insert_day_scene_tree('ciel', ciel_scenes)
+
+        # Helper fun to insert the non-day scenes
+        def insert_non_day_scene_tree(root, scene_names):
+            for scene in sorted(scene_names, key = cmp_to_key(self.compare_scenes)):
+                self.scene_tree.insert(
+                    root,
+                    tk.END,
+                    text=scene,
+                    iid=scene,
+                    open=False
+                )
+
+        insert_non_day_scene_tree('qa', qa_scenes)
+        insert_non_day_scene_tree('misc', misc_scenes)
 
         # Double-click scenes to load
         self.scene_tree.bind('<Double-Button-1>', self.load_scene)

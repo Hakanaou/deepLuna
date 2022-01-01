@@ -26,8 +26,12 @@ class TranslationDb:
         self._scene_map = scene_map
         self._line_by_hash = line_by_hash
 
-    def scene_names(self):
-        return list(self._scene_map.keys())
+    def scene_names(self, include_empty=False):
+        all_scenes = list(self._scene_map.keys())
+        if include_empty:
+            return all_scenes
+
+        return [scene for scene in all_scenes if self._scene_map[scene]]
 
     def translated_percent(self):
         total_lines = 0
