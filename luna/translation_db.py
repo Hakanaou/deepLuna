@@ -26,6 +26,19 @@ class TranslationDb:
         self._scene_map = scene_map
         self._line_by_hash = line_by_hash
 
+    def scene_names(self):
+        return list(self._scene_map.keys())
+
+    def translated_percent(self):
+        total_lines = 0
+        translated_lines = 0
+        for line in self._line_by_hash.values():
+            total_lines += 1
+            if line.en_text:
+                translated_lines += 1
+
+        return float(translated_lines) * 100.0 / float(total_lines)
+
     def as_json(self):
         return json.dumps({
             'scene_map': {
@@ -276,12 +289,12 @@ class TranslationDb:
 
     class TLLine:
         def __init__(self, jp_text, en_text=None, comment=None):
-            self._jp_text = jp_text
-            self._en_text = en_text
-            self._comment = comment
+            self.jp_text = jp_text
+            self.en_text = en_text
+            self.comment = comment
 
         def content_hash(self):
-            return hashlib.sha1(self._jp_text.encode('utf-8')).hexdigest()
+            return hashlib.sha1(self.jp_text.encode('utf-8')).hexdigest()
 
         @classmethod
         def from_json(cls, jsonb):
@@ -293,7 +306,7 @@ class TranslationDb:
 
         def as_json(self):
             return {
-                'jp_text': self._jp_text,
-                'en_text': self._en_text,
-                'comment': self._comment,
+                'jp_text': self.jp_text,
+                'en_text': self.en_text,
+                'comment': self.comment,
             }
