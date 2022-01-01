@@ -1,4 +1,7 @@
+import contextlib
+
 from functools import cmp_to_key
+
 import tkinter as tk
 from tkinter.ttk import (
     Style,
@@ -468,7 +471,8 @@ class TranslationWindow:
                     ''.join(modifiers)
                 )
             )
-            if self._translation_db.translation_for_hash(line.jp_hash):
+            tl_info = self._translation_db.tl_line_with_hash(line.jp_hash)
+            if tl_info.en_text:
                 self.listbox_offsets.itemconfig(idx, bg='#BCECC8')
                 translated_count += 1
             idx += 1
@@ -479,8 +483,41 @@ class TranslationWindow:
             "1.0", str(round(translated_count*100/min(idx,1),1))+"%")
         self._name_day.set(scene + ": ")
 
-    def load_translation_line(self, line):
-        print(f"Load TL line {line}")
+    def load_translation_line(self, _event):
+        # Get the selected line indexes (multiple selection possible, but ignored)
+        selected_indexes = self.listbox_offsets.curselection()
+        if not selected_indexes:
+            return
+
+        # Check the active scene is valid
+        selected_scene = self.scene_tree.focus()
+        if selected_scene not in self._translation_db.scene_names():
+            return
+
+        # Load the relevant line info from the scene
+        scene_lines = self._translation_db.lines_for_scene(selected_scene)
+        selected_line = scene_lines[selected_indexes[0]]
+
+        # Get the translation data for this JP hash
+        tl_info = self._translation_db.tl_line_with_hash(selected_line.jp_hash)
+
+        # Update the text fields
+        with self.editable_orig_text():
+            self.text_orig.delete("1.0", tk.END)
+            self.text_translated.delete("1.0", tk.END)
+            self.text_comment.delete("1.0", tk.END)
+
+            self.text_orig.insert("1.0", tl_info.jp_text)
+            self.text_translated.insert("1.0", tl_info.en_text or "")
+            self.text_comment.insert("1.0", tl_info.comment or "")
+
+    @contextlib.contextmanager
+    def editable_orig_text(self):
+        self.text_orig.config(state=tk.NORMAL)
+        try:
+            yield None
+        finally:
+            self.text_orig.config(state=tk.DISABLED)
 
     def init_translation_percent_ui(self):
         # Name of currently loaded day
