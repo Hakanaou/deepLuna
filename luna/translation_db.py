@@ -33,6 +33,12 @@ class TranslationDb:
 
         return [scene for scene in all_scenes if self._scene_map[scene]]
 
+    def lines_for_scene(self, scene_name):
+        return self._scene_map[scene_name]
+
+    def translation_for_hash(self, jp_hash):
+        return self._line_by_hash[jp_hash].en_text
+
     def translated_percent(self):
         total_lines = 0
         translated_lines = 0

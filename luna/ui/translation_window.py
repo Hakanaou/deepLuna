@@ -437,8 +437,47 @@ class TranslationWindow:
         self.scene_tree.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
         self.frame_tree.pack(side=tk.LEFT)
 
-    def load_scene(self, scene):
-        print(f"Load scene {scene}")
+    def load_scene(self, _event):
+        # Get the selected scene id
+        scene = self.scene_tree.focus()
+
+        # If this isn't a real scene (e.g. a day header), do nothing
+        if scene not in self._translation_db.scene_names():
+            return
+
+        # Clear old data from offsets list
+        self.listbox_offsets.delete(0, tk.END)
+
+        # Add new entries for each translation offset
+        scene_lines = self._translation_db.lines_for_scene(scene)
+        idx = 0
+        translated_count = 0
+        for line in scene_lines:
+            modifiers = []
+            if line.has_ruby:
+                modifiers.append('*')
+            if line.is_glued:
+                modifiers.append('+')
+            if line.is_choice:
+                modifiers.append('?')
+            self.listbox_offsets.insert(
+                idx,
+                "%03d: %05d %s" % (
+                    line.page_number,
+                    line.offset,
+                    ''.join(modifiers)
+                )
+            )
+            if self._translation_db.translation_for_hash(line.jp_hash):
+                self.listbox_offsets.itemconfig(idx, bg='#BCECC8')
+                translated_count += 1
+            idx += 1
+
+        # Update current day translated percent
+        self.percent_translated_day.delete("1.0", tk.END)
+        self.percent_translated_day.insert(
+            "1.0", str(round(translated_count*100/min(idx,1),1))+"%")
+        self._name_day.set(scene + ": ")
 
     def load_translation_line(self, line):
         print(f"Load TL line {line}")
