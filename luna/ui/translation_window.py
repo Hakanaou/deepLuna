@@ -1,3 +1,4 @@
+import sys
 import contextlib
 
 from functools import cmp_to_key
@@ -9,6 +10,7 @@ from tkinter.ttk import (
 )
 
 from luna.constants import Constants
+from luna.readable_exporter import ReadableExporter
 from luna.translation_db import TranslationDb
 
 
@@ -258,7 +260,15 @@ class TranslationWindow:
         print("Search text")
 
     def export_page(self):
-        print("Export page")
+        # Check the active scene is valid
+        selected_scene = self.scene_tree.focus()
+        if selected_scene not in self._translation_db.scene_names():
+            return
+
+        # Export
+        sys.stderr.write(
+            ReadableExporter.export_text(
+                self._translation_db, selected_scene))
 
     def export_all_pages_window(self):
         print("Export all")
