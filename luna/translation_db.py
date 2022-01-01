@@ -41,7 +41,7 @@ class TranslationDb:
     def from_json(cls, jsonb):
         scene_map = {
             k: [cls.TextCommand.from_json(e) for e in v]
-            for k, v in jsonb['scene_map']
+            for k, v in jsonb['scene_map'].items()
         }
         line_by_hash = {
             k: cls.TLLine.from_json(v) for k, v in jsonb['line_by_hash'].items()
