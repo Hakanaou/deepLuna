@@ -130,7 +130,7 @@ class StartWindow:
                 self._warning,
                 text="Existing database found. Do you wish to overwrite?"
             )
-            warning_message.grid(row=0, column=0, pady=5)
+            warning_message.grid(row=0, column=0, pady=5, columnspan=2)
 
             # Button choices
             warning_button = tk.Button(
