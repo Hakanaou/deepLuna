@@ -1,3 +1,4 @@
+import time
 import os
 import contextlib
 
@@ -185,29 +186,21 @@ class TranslationWindow:
         )
         self.button_save_file.grid(row=1, column=2, padx=2)
 
-        # Translate line using DeepL
-        self.button_translate_file = tk.Button(
-            self.frame_buttons,
-            text="Translate",
-            command=self.translate_game_window
-        )
-        self.button_translate_file.grid(row=1, column=3, padx=2)
-
         # Pack new script_text mrg
         self.button_insert_translation = tk.Button(
             self.frame_buttons,
             text="Insert",
             command=self.insert_translation
         )
-        self.button_insert_translation.grid(row=1, column=4, padx=2)
+        self.button_insert_translation.grid(row=1, column=3, padx=2, pady=2)
 
-        # Search window
+        # Re-scan import dir
         self.button_search_text = tk.Button(
             self.frame_buttons,
-            text="Search",
-            command=self.search_text_window
+            text="Re-Import Updates",
+            command=self.import_updates
         )
-        self.button_search_text.grid(row=1, column=5, padx=2)
+        self.button_search_text.grid(row=2, column=1, padx=2, pady=2)
 
         # Export selected scene
         self.button_export_page = tk.Button(
@@ -215,7 +208,7 @@ class TranslationWindow:
             text="Export scene",
             command=self.export_page
         )
-        self.button_export_page.grid(row=1, column=6, padx=2)
+        self.button_export_page.grid(row=2, column=2, padx=2, pady=2)
 
         # Export _all_ scenes
         self.button_export_all = tk.Button(
@@ -223,7 +216,7 @@ class TranslationWindow:
             text="Export all",
             command=self.export_all_pages_window
         )
-        self.button_export_all.grid(row=1, column=7, padx=2)
+        self.button_export_all.grid(row=2, column=3, padx=2)
 
         # Pack button region
         self.frame_buttons.grid(row=7, column=1)
@@ -283,14 +276,17 @@ class TranslationWindow:
         with open(Constants.DATABASE_PATH, 'wb+') as output:
             output.write(self._translation_db.as_json().encode('utf-8'))
 
-    def translate_game_window(self):
-        print("Translate game window")
-
     def insert_translation(self):
-        print("Insert tl")
+        # Export the script as an MZP
+        mzp_data = self._translation_db.generate_script_text_mrg()
 
-    def search_text_window(self):
-        print("Search text")
+        # Write to file
+        current_time = time.strftime('%Y%m%d-%H%M%S')
+        output_filename = f"script_text_translated{current_time}.mrg"
+        with open(output_filename, 'wb+') as f:
+            f.write(mzp_data)
+
+        print(f"Exported translation to {output_filename}")
 
     def export_page(self):
         # Check the active scene is valid

@@ -1,3 +1,4 @@
+import io
 import hashlib
 import json
 import multiprocessing
@@ -7,6 +8,7 @@ import sys
 
 from luna.mrg_parser import Mzp
 from luna.mzx import Mzx
+
 
 class TranslationDb:
     """
@@ -71,9 +73,49 @@ class TranslationDb:
             for k, v in jsonb['scene_map'].items()
         }
         line_by_hash = {
-            k: cls.TLLine.from_json(v) for k, v in jsonb['line_by_hash'].items()
+            k: cls.TLLine.from_json(v)
+            for k, v in jsonb['line_by_hash'].items()
         }
         return cls(scene_map, line_by_hash)
+
+    def generate_script_text_mrg(self):
+        # Iterate each scene in the translation DB, apply line breaking
+        # and control codes and stick the result into a map of offset -> string
+        offset_to_string = {}
+        for scene in self._scene_map.values():
+            for command in scene:
+                # Pull the translated text for this line
+                tl_line = self._line_by_hash[command.jp_hash]
+
+                # Get the english text. If the line is not actually translated,
+                # fall back to the original JP text instead.
+                tl_text = tl_line.en_text or tl_line.jp_text
+
+                # Process the line
+                # TODO(ross)
+                # tl_line.is_glued, is_choice, has_ruby
+                processed_string = tl_text
+
+                # Stick the processed string into our map
+                offset_to_string[command.offset] = processed_string
+
+        # Now that we have processed all the strings, iterate from 0 to
+        # max_offset and write each string entry into an MZP.
+        max_offset = max(offset_to_string.keys())
+        offset_table = io.BytesIO()
+        string_table = io.BytesIO()
+        for offset in range(max_offset+1):
+            # Write the offset of this string to the offset table
+            offset_table.write(struct.pack(">I", string_table.tell()))
+
+            # Write the string data to the string table
+            string_table.write(
+                offset_to_string.get(offset, '').encode('utf-8'))
+
+        # Pack the MZP
+        offset_table.seek(0, io.SEEK_SET)
+        string_table.seek(0, io.SEEK_SET)
+        return Mzp.pack([offset_table.read(), string_table.read()])
 
     @classmethod
     def from_file(cls, path):
@@ -97,13 +139,15 @@ class TranslationDb:
         for i in range(offset_count):
             (data_start,) = struct.unpack('>I', string_offsets_raw[i*4:i*4+4])
             if i < offset_count - 1:
-                (data_end,) = struct.unpack('>I', string_offsets_raw[(i+1)*4:(i+1)*4+4])
+                (data_end,) = struct.unpack(
+                    '>I', string_offsets_raw[(i+1)*4:(i+1)*4+4])
                 data = string_table_raw[data_start:data_end]
             else:
                 data = string_table_raw[data_start:]
             strings_by_offset[i] = data.decode('utf-8')
 
-        # Hash those strings to build initial content table and offset -> hash table
+        # Hash those strings to build initial content table and
+        # offset -> hash table
         content_hash_by_offset = {}
         strings_by_content_hash = {}
         for offset, jp_text in strings_by_offset.items():
@@ -191,12 +235,16 @@ class TranslationDb:
                     offsets = [int(ref[1:]) for ref in text_refs]
                     for offset in offsets:
                         # Glue if the previous line ends in an @n
-                        jp_line = strings_by_content_hash[content_hash_by_offset[offset]]
+                        jp_line = strings_by_content_hash[
+                            content_hash_by_offset[offset]]
                         jp_text = jp_line.jp_text
-                        is_glued = bool(text_offsets) and bool('@n' in text_offsets[-1].modifiers)
+                        is_glued = bool(text_offsets) and \
+                            bool('@n' in text_offsets[-1].modifiers)
                         has_ruby = '<' in jp_text
                         text_offsets.append(cls.TextCommand(
-                            offset, content_hash_by_offset[offset], page_number,
+                            offset,
+                            content_hash_by_offset[offset],
+                            page_number,
                             has_ruby=has_ruby,
                             is_glued=is_glued,
                             is_choice=is_selr,
@@ -218,7 +266,6 @@ class TranslationDb:
         scene_map['ORPHANED_LINES'] = orphan_lines
 
         return cls(scene_map, strings_by_content_hash)
-
 
     class TextCommand:
         def __init__(self, offset, jp_hash, page_number, has_ruby=False,
@@ -270,7 +317,6 @@ class TranslationDb:
                 f"TextCommand: {self.offset} {self.jp_hash} {self.has_ruby} "
                 f"{self.is_glued} {self.is_choice} {self.modifiers}"
             )
-
 
     class AllscrCmd:
         def __init__(self, opcode, arguments=None):
