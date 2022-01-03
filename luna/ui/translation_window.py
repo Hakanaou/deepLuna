@@ -62,6 +62,9 @@ class TranslationWindow:
         # Init total translated percent field
         self.load_percentage()
 
+        # Scan update dir for any new files
+        self.import_updates()
+
     def load_percentage(self):
         percent_translated = self._translation_db.translated_percent()
         self.percent_translated_global.delete("1.0", tk.END)
@@ -326,6 +329,42 @@ class TranslationWindow:
                         self._translation_db, scene
                     ).encode('utf-8')
                 )
+
+    def import_updates(self):
+        # Any goodies for us in the update folder?
+        for basedir, dirs, files in os.walk(Constants.IMPORT_DIRECTORY):
+            for filename in files:
+                # Ignore non-text files
+                if not filename.endswith(".txt"):
+                    continue
+
+                # Attempt to parse each file as an update
+                try:
+                    # Import the changes from the file
+                    absolute_path = os.path.join(basedir, filename)
+                    self.import_update_file(absolute_path)
+
+                    # If we successfully loaded it, delete it.
+                    os.unlink(absolute_path)
+                except ReadableExporter.ParseError as e:
+                    print(
+                        f"Failed to apply updates from {filename}: "
+                        f"{e}"
+                    )
+
+    def import_update_file(self, filename):
+        # Load the file
+        with open(filename, "rb") as f:
+            file_text = f.read().decode('utf-8')
+
+        # Try to parse it to a diff
+        diff = ReadableExporter.import_text(file_text)
+
+        # If we get a good result, apply the changes to the DB
+        for jp_hash, (tl_text, comment_text) in diff.items():
+            self._translation_db.set_translation_and_comment_for_hash(
+                jp_hash, tl_text, comment_text
+            )
 
     def init_line_selector(self):
         self.line_selector_frame = tk.Frame(self.frame_editing, borderwidth=20)

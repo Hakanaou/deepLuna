@@ -25,6 +25,10 @@ class ReadableExporter:
     }
     """
 
+    class ParseError(Exception):
+        def __init__(self, *args, **kwargs):
+            super(ReadableExporter.ParseError, self).__init__(*args, **kwargs)
+
     class LexState:
         EXPECT_BLOCK = 0
         PARSE_CONTENT_HASH = 1
@@ -62,7 +66,10 @@ class ReadableExporter:
                     cmd_acc = ""
                     continue
 
-                assert False, f"Unexpected token '{c}' on line {line_counter} while in state EXPECT_BLOCK"
+                raise cls.ParseError(
+                    f"Unexpected token '{c}' on "
+                    f"line {line_counter} while in state EXPECT_BLOCK"
+                )
 
             # Are we processing the content-hash specifier for a block?
             if state == cls.LexState.PARSE_CONTENT_HASH:
@@ -81,7 +88,11 @@ class ReadableExporter:
 
                 # All content hashes must be valid lowercase hex
                 if c not in '0123456789abcdef':
-                    assert False, f"Invalid character '{c}' in content hash on line {line_counter}"
+                    raise cls.ParseError(
+                        f"Invalid character '{c}' in "
+                        f"content hash on line {line_counter}"
+                    )
+
                 # Accumulate the character onto the cmd_acc buffer
                 cmd_acc += c
 
@@ -99,7 +110,10 @@ class ReadableExporter:
                     cmd_acc = ""
                     continue
 
-                assert False, f"Expected open-block after block-specifier but found '{c}' on line {line_counter}"
+                raise cls.ParseError(
+                    "Expected open-block after block-specifier "
+                    f"but found '{c}' on line {line_counter}"
+                )
 
             # Consume until we hit a close-block '}'. Accumulate lines into
             # cmd_acc until we hit either a newline or comment char, at which
@@ -134,7 +148,12 @@ class ReadableExporter:
                         cmd_acc = ""
 
                         # Create a new entry in our return map
-                        ret[active_content_hash] = (translated_text, human_comments)
+                        # If there is no valid tl or comments, use None instead
+                        # of empty string as an indicator
+                        ret[active_content_hash] = (
+                            translated_text or None,
+                            human_comments or None
+                        )
                         translated_text = ""
                         human_comments = ""
 
