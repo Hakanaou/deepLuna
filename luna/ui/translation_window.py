@@ -63,6 +63,7 @@ class TranslationWindow:
         self.load_percentage()
 
         # Scan update dir for any new files
+        self.import_legacy_updates()
         self.import_updates()
 
     def load_percentage(self):
@@ -364,6 +365,74 @@ class TranslationWindow:
         for jp_hash, (tl_text, comment_text) in diff.items():
             self._translation_db.set_translation_and_comment_for_hash(
                 jp_hash, tl_text, comment_text
+            )
+
+    def import_legacy_updates(self):
+        # Scan the legacy update folder for old-style files
+        for basedir, dirs, files in os.walk(Constants.LEGACY_IMPORT_DIRECTORY):
+            for filename in files:
+                # Ignore non-text files
+                if not filename.endswith(".txt"):
+                    continue
+
+                # Import the changes from the file
+                try:
+                    absolute_path = os.path.join(basedir, filename)
+                    self.import_legacy_update_file(absolute_path)
+
+                    # If we successfully loaded it, delete it.
+                    os.unlink(absolute_path)
+                except AssertionError as e:
+                    print(
+                        f"Failed to apply updates from {filename}: "
+                        f"{e}"
+                    )
+
+    def import_legacy_update_file(self, filename):
+        # Can we determine the appropriate scene from this filename?
+        basename = os.path.basename(filename)
+        scene_name = basename[:-4]
+        if scene_name not in self._translation_db.scene_names():
+            print(f"Cannot match file '{basename}' to a scene")
+            return
+
+        # Load the file
+        with open(filename, "rb") as f:
+            file_text = f.read().decode('utf-8')
+
+        # Split into lines and delete page markers
+        raw_lines = [
+            line for line in file_text.split('\n')
+            if line and not line.startswith('<Page')
+        ]
+
+        # Since the old format glued lines, we need to split them back apart.
+        # Just duplicate comments on glued lines to all members.
+        lines = []
+        for line in raw_lines:
+            # Split into tl and comment
+            split_line = line.split('//')
+            glued_en_text = split_line[0]
+            comment_text = split_line[1] if len(split_line) > 1 else None
+
+            # If the TL is actually multiple lines (glued), break it up
+            split_en_text = glued_en_text.split('#')
+            for fragment in split_en_text:
+                lines.append((fragment, comment_text))
+
+        # Get the scene info for this file
+        scene_lines = self._translation_db.lines_for_scene(scene_name)
+
+        # Assert that then number of lines in the file to import matches the
+        # expected number of lines in the scene
+        assert len(scene_lines) == len(lines), \
+            f"File {basename} has {len(lines)} strings, " \
+            f"but scene expects {len(scene_lines)} lines."
+
+        # Zip and update
+        for scene_line, (tl_text, comment_text) in zip(scene_lines, lines):
+            self._translation_db.set_translation_and_comment_for_hash(
+                scene_line.jp_hash, tl_text, comment_text
             )
 
     def init_line_selector(self):
