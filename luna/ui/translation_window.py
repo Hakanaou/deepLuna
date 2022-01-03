@@ -1,4 +1,4 @@
-import sys
+import os
 import contextlib
 
 from functools import cmp_to_key
@@ -123,7 +123,8 @@ class TranslationWindow:
         self.text_frame = tk.Frame(self.frame_editing, borderwidth=20)
 
         # Original JP text field
-        self.labels_txt_orig = tk.Label(self.text_frame, text="Original text:")
+        self.labels_txt_orig = tk.Label(
+            self.text_frame, text="Original text:")
         self.labels_txt_orig.grid(row=1, column=1)
         self.text_orig = tk.Text(
             self.text_frame,
@@ -136,7 +137,8 @@ class TranslationWindow:
         self.text_orig.grid(row=2, column=1)
 
         # Translated text field
-        self.labels_txt_trad = tk.Label(self.text_frame, text="Translated text:")
+        self.labels_txt_trad = tk.Label(
+            self.text_frame, text="Translated text:")
         self.labels_txt_trad.grid(row=3, column=1)
         self.text_translated = tk.Text(
             self.text_frame,
@@ -148,7 +150,8 @@ class TranslationWindow:
         self.text_translated.grid(row=4, column=1)
 
         # Comments field
-        self.labels_txt_comment = tk.Label(self.text_frame, text="Comments:")
+        self.labels_txt_comment = tk.Label(
+            self.text_frame, text="Comments:")
         self.labels_txt_comment.grid(row=5, column=1)
         self.text_comment = tk.Text(
             self.text_frame,
@@ -157,7 +160,7 @@ class TranslationWindow:
             borderwidth=5,
             highlightbackground="#A8A8A8"
         )
-        self.text_comment.grid(row=6,column=1)
+        self.text_comment.grid(row=6, column=1)
 
         # Text buttons
         self.frame_buttons = tk.Frame(self.text_frame, borderwidth=10)
@@ -237,18 +240,44 @@ class TranslationWindow:
             onvalue=True,
             offvalue=False
         )
-        self.option_swapText.grid(row=0,column=1)
+        self.option_swapText.grid(row=0, column=1)
 
         # Pack all containers
-        self.frame_options.grid(row=8,column=1)
+        self.frame_options.grid(row=8, column=1)
         self.text_frame.pack(side=tk.LEFT)
         self.frame_editing.grid(row=2, column=1)
 
     def save_line(self):
-        print("Save line")
+        # Get the selected line indexes
+        # (multiple selection possible, but ignored)
+        selected_indexes = self.listbox_offsets.curselection()
+        if not selected_indexes:
+            return
+
+        # Check the active scene is valid
+        selected_scene = self.scene_tree.focus()
+        if selected_scene not in self._translation_db.scene_names():
+            return
+
+        # Get the line info for the selected offset
+        scene_lines = self._translation_db.lines_for_scene(selected_scene)
+        selected_line = scene_lines[selected_indexes[0]]
+
+        # Extract the new tl/comment
+        new_tl = self.text_translated.get("1.0", tk.END).strip("\n")
+        new_comment = self.text_comment.get("1.0", tk.END).strip("\n")
+
+        # Write them back to the translation DB
+        self._translation_db.set_translation_and_comment_for_hash(
+            selected_line.jp_hash,
+            new_tl,
+            new_comment
+        )
 
     def save_translation_table(self):
-        print("Save tl table")
+        # Write out the translation DB to file
+        with open(Constants.DATABASE_PATH, 'wb+') as output:
+            output.write(self._translation_db.as_json().encode('utf-8'))
 
     def translate_game_window(self):
         print("Translate game window")
@@ -265,13 +294,38 @@ class TranslationWindow:
         if selected_scene not in self._translation_db.scene_names():
             return
 
+        # Ensure the export dir exists
+        try:
+            os.makedirs(Constants.EXPORT_DIRECTORY)
+        except FileExistsError:
+            pass
+
         # Export
-        sys.stderr.write(
-            ReadableExporter.export_text(
-                self._translation_db, selected_scene))
+        output_filename = os.path.join(
+            Constants.EXPORT_DIRECTORY, f"{selected_scene}.txt")
+        with open(output_filename, "wb+") as output_file:
+            output_file.write(
+                ReadableExporter.export_text(
+                    self._translation_db, selected_scene
+                ).encode('utf-8')
+            )
 
     def export_all_pages_window(self):
-        print("Export all")
+        # Ensure the export dir exists
+        try:
+            os.makedirs(Constants.EXPORT_DIRECTORY)
+        except FileExistsError:
+            pass
+
+        for scene in self._translation_db.scene_names():
+            output_filename = os.path.join(
+                Constants.EXPORT_DIRECTORY, f"{scene}.txt")
+            with open(output_filename, "wb+") as output_file:
+                output_file.write(
+                    ReadableExporter.export_text(
+                        self._translation_db, scene
+                    ).encode('utf-8')
+                )
 
     def init_line_selector(self):
         self.line_selector_frame = tk.Frame(self.frame_editing, borderwidth=20)
@@ -292,12 +346,12 @@ class TranslationWindow:
         )
         self.listbox_offsets.bind('<Button-1>', self.load_translation_line)
         self.listbox_offsets.bind('<Return>', self.load_translation_line)
-        self.listbox_offsets.pack(side = tk.LEFT, fill = tk.BOTH)
+        self.listbox_offsets.pack(side=tk.LEFT, fill=tk.BOTH)
         self.scrollbar_offsets = tk.Scrollbar(self.line_selector_frame)
-        self.scrollbar_offsets.pack(side = tk.RIGHT, fill = tk.BOTH)
+        self.scrollbar_offsets.pack(side=tk.RIGHT, fill=tk.BOTH)
 
-        self.listbox_offsets.config(yscrollcommand = self.scrollbar_offsets.set)
-        self.scrollbar_offsets.config(command = self.listbox_offsets.yview)
+        self.listbox_offsets.config(yscrollcommand=self.scrollbar_offsets.set)
+        self.scrollbar_offsets.config(command=self.listbox_offsets.yview)
 
         self.line_selector_frame.pack(side=tk.LEFT)
 
@@ -406,7 +460,8 @@ class TranslationWindow:
         # Helper fun to add arc/ciel scenes, which are by-day
         def insert_day_scene_tree(root, scene_names):
             # Create day holders
-            day_names = sorted(list(set([v.split('_')[0] for v in scene_names])))
+            day_names = sorted(list(set([
+                v.split('_')[0] for v in scene_names])))
             for day in day_names:
                 self.scene_tree.insert(
                     root,
@@ -417,7 +472,9 @@ class TranslationWindow:
                 )
 
             # Add arc scenes to appropriate days
-            for scene in sorted(scene_names, key=cmp_to_key(self.compare_scenes)):
+            sorted_scenes = sorted(
+                scene_names, key=cmp_to_key(self.compare_scenes))
+            for scene in sorted_scenes:
                 scene_day = scene.split('_')[0]
                 self.scene_tree.insert(
                     f"{root}_{scene_day}",
@@ -432,7 +489,9 @@ class TranslationWindow:
 
         # Helper fun to insert the non-day scenes
         def insert_non_day_scene_tree(root, scene_names):
-            for scene in sorted(scene_names, key = cmp_to_key(self.compare_scenes)):
+            sorted_scenes = sorted(
+                scene_names, key=cmp_to_key(self.compare_scenes))
+            for scene in sorted_scenes:
                 self.scene_tree.insert(
                     root,
                     tk.END,
@@ -490,11 +549,13 @@ class TranslationWindow:
         # Update current day translated percent
         self.percent_translated_day.delete("1.0", tk.END)
         self.percent_translated_day.insert(
-            "1.0", str(round(translated_count*100/min(idx,1),1))+"%")
+            "1.0",
+            str(round(translated_count*100/min(idx, 1), 1))+"%")
         self._name_day.set(scene + ": ")
 
     def load_translation_line(self, _event):
-        # Get the selected line indexes (multiple selection possible, but ignored)
+        # Get the selected line indexes
+        # (multiple selection possible, but ignored)
         selected_indexes = self.listbox_offsets.curselection()
         if not selected_indexes:
             return

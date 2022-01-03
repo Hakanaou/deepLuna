@@ -39,6 +39,10 @@ class TranslationDb:
     def tl_line_with_hash(self, jp_hash):
         return self._line_by_hash[jp_hash]
 
+    def set_translation_and_comment_for_hash(self, jp_hash, en_text, comment):
+        self._line_by_hash[jp_hash].en_text = en_text
+        self._line_by_hash[jp_hash].comment = comment
+
     def translated_percent(self):
         total_lines = 0
         translated_lines = 0
