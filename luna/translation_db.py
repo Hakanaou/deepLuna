@@ -92,6 +92,44 @@ class TranslationDb:
 
         return cls(scene_map, line_by_hash, charswap_map)
 
+    def export_scene(self, scene_name, output_basedir):
+        if scene_name not in self.scene_names():
+            return
+
+        # Generate the full export path
+        is_arc_scene = '_ARC' in scene_name
+        is_ciel_scene = '_CIEL' in scene_name
+        is_qa_scene = 'QA' in scene_name
+        is_common_scene = not any([is_arc_scene, is_ciel_scene, is_qa_scene])
+        export_path = [output_basedir]
+        if is_arc_scene or is_ciel_scene:
+            day = int(scene_name.split('_')[0])
+            export_path += [
+                'Arcueid' if is_arc_scene else 'Ciel',
+                f'Day {day}'
+            ]
+        elif is_qa_scene:
+            export_path += ['QA']
+        elif is_common_scene:
+            export_path += ['Common']
+
+        # Ensure the export dir exists
+        output_basedir = os.path.join(*export_path)
+        try:
+            os.makedirs(output_basedir)
+        except FileExistsError:
+            pass
+
+        # Export
+        output_filename = os.path.join(
+            output_basedir, f"{scene_name}.txt")
+        with open(output_filename, "wb+") as output_file:
+            output_file.write(
+                ReadableExporter.export_text(
+                    self, scene_name
+                ).encode('utf-8')
+            )
+
     def generate_script_text_mrg(self, perform_charswap=False):
         # Iterate each scene in the translation DB, apply line breaking
         # and control codes and stick the result into a map of offset -> string

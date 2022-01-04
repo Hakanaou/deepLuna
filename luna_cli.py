@@ -13,6 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="deepLuna CLI"
     )
+
     parser.add_argument(
         '--db_path',
         dest='db_path',
@@ -20,6 +21,7 @@ def parse_args():
         help="Path to translation DB file",
         default=Constants.DATABASE_PATH
     )
+
     parser.add_argument(
         '--import',
         dest='import_path',
@@ -38,6 +40,7 @@ def parse_args():
         action='store_true',
         help="Delete files after importing"
     )
+
     parser.add_argument(
         '--inject',
         dest='do_inject',
@@ -50,6 +53,14 @@ def parse_args():
         action='store',
         help="Output path for the injected script text"
     )
+
+    parser.add_argument(
+        '--export',
+        dest='export_path',
+        action='store',
+        help="Output path for the exported script text"
+    )
+
     return parser.parse_args(sys.argv[1:])
 
 
@@ -116,6 +127,11 @@ def perform_inject(tl_db, args):
     print(f"Wrote script to '{output_filename}'")
 
 
+def perform_export(tl_db, args):
+    for scene in tl_db.scene_names():
+        tl_db.export_scene(scene, args.export_path)
+
+
 def main():
     args = parse_args()
 
@@ -129,6 +145,9 @@ def main():
     # Inject anything?
     if args.do_inject:
         perform_inject(tl_db, args)
+
+    if args.export_path:
+        perform_export(tl_db, args)
 
 
 if __name__ == '__main__':
