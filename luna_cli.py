@@ -68,8 +68,6 @@ def perform_import(tl_db, args):
 
     # Apply non-conflict data immediately
     tl_db.apply_diff(consolidated_diff)
-    with open(args.db_path, 'wb+') as output:
-        output.write(tl_db.as_json().encode('utf-8'))
 
     # Print conflict info
     for sha, candidates in conflicts.items():
@@ -91,6 +89,10 @@ def perform_import(tl_db, args):
     if conflicts and args.strict_import:
         print("Conflicts found, aborting")
         raise SystemExit(-1)
+
+    # Write back changes to disk
+    with open(args.db_path, 'wb+') as output:
+        output.write(tl_db.as_json().encode('utf-8'))
 
     # Clean up afterwards?
     if args.delete:
