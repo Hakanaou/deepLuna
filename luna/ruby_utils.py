@@ -144,10 +144,12 @@ class RubyUtils:
                     processed_line += "\n"
                 elif cc_acc == 's':
                     # Forced space
-                    processed_line += "\n"
+                    processed_line += " "
                 else:
                     assert False, \
                         f"Unhandled control code '{cc_acc}' in line '{text}'"
+
+                continue
 
             # Non-control mode: just append character to output buffer
             if not in_cc:
