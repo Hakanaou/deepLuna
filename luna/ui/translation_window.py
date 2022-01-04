@@ -1,6 +1,7 @@
-import time
-import os
 import contextlib
+import os
+import shutil
+import time
 
 from functools import cmp_to_key
 
@@ -29,6 +30,8 @@ class TranslationWindow:
 
         # Reference for warning dialog handles
         self._warning = None
+        self._conflict_dialog = None
+        self._charswap_map_editor = None
 
         # Try and load the translation DB from file
         self._translation_db = TranslationDb.from_file(
@@ -194,6 +197,14 @@ class TranslationWindow:
         )
         self.button_insert_translation.grid(row=1, column=3, padx=2, pady=2)
 
+        # Edit character swap mapping
+        self.button_edit_charswap_map = tk.Button(
+            self.frame_buttons,
+            text="Configure Charswap",
+            command=self.edit_charswap_map
+        )
+        self.button_edit_charswap_map.grid(row=1, column=4, padx=2, pady=2)
+
         # Re-scan import dir
         self.button_search_text = tk.Button(
             self.frame_buttons,
@@ -214,7 +225,7 @@ class TranslationWindow:
         self.button_export_all = tk.Button(
             self.frame_buttons,
             text="Export all",
-            command=self.export_all_pages_window
+            command=self.export_all_pages
         )
         self.button_export_all.grid(row=2, column=3, padx=2)
 
@@ -243,6 +254,87 @@ class TranslationWindow:
         self.frame_options.grid(row=8, column=1)
         self.text_frame.pack(side=tk.LEFT)
         self.frame_editing.grid(row=2, column=1)
+
+    def edit_charswap_map(self):
+        self._charswap_map_editor = tk.Toplevel(self._root)
+        self._charswap_map_editor.resizable(height=False, width=False)
+        self._charswap_map_editor.title("Edit swap table")
+        self._charswap_map_editor.grab_set()
+
+        tk.Label(
+            self._charswap_map_editor,
+            text="Enter the character pairs to be swapped\n"
+                 "One pair per line, separated by a comma"
+        ).grid(row=0, column=0)
+
+        self.swap_text_zone = tk.Text(
+            self._charswap_map_editor,
+            width=20,
+            height=25,
+            borderwidth=5,
+            highlightbackground="#A8A8A8"
+        )
+        self.swap_text_zone.grid(row=1, column=0)
+
+        # Initialize text area with existing map
+        existing_map = self._translation_db.get_charswap_map()
+        existing_map_text = "\n".join([
+            f"{k},{v}"
+            for k, v in existing_map.items()
+        ])
+        self.swap_text_zone.delete("1.0", tk.END)
+        self.swap_text_zone.insert("1.0", existing_map_text)
+
+        swap_frame_buttons = tk.Frame(
+            self._charswap_map_editor, borderwidth=10)
+
+        swap_ok_button = tk.Button(
+            swap_frame_buttons,
+            text="Save",
+            command=self.save_charswap_config
+        )
+        swap_ok_button.grid(row=0, column=0)
+
+        swap_warning_button = tk.Button(
+            swap_frame_buttons,
+            text="Cancel",
+            command=self.close_charswap_editor
+        )
+        swap_warning_button.grid(row=0, column=1, pady=10)
+        swap_frame_buttons.grid(row=2, column=0)
+
+    def save_charswap_config(self):
+        # Retrieve the new settings text
+        swap_conf_text = self.swap_text_zone.get("1.0", tk.END)
+
+        # Split out the entries
+        swap_map = {}
+        for line in swap_conf_text.split("\n"):
+            # Ignore blanks
+            if not line:
+                continue
+
+            # Split on comma
+            split_line = line.split(",")
+            if len(split_line) != 2:
+                print(f"Invalid charswap entry '{line}', ignoring")
+                continue
+            swap_map[split_line[0].strip()] = split_line[1].strip()
+
+        # Write the swap map to the TL DB
+        self._translation_db.set_charswap_map(swap_map)
+
+        # Save DB to persist config
+        self.save_translation_table()
+
+        # Close dialog
+        self.close_charswap_editor()
+
+    def close_charswap_editor(self):
+        if self._charswap_map_editor:
+            self._charswap_map_editor.grab_release()
+            self._charswap_map_editor.destroy()
+            self._charswap_map_editor = None
 
     def save_line(self):
         # Get the selected line indexes
@@ -278,7 +370,8 @@ class TranslationWindow:
 
     def insert_translation(self):
         # Export the script as an MZP
-        mzp_data = self._translation_db.generate_script_text_mrg()
+        mzp_data = self._translation_db.generate_script_text_mrg(
+            perform_charswap=self.var_swapText.get())
 
         # Write to file
         current_time = time.strftime('%Y%m%d-%H%M%S')
@@ -289,79 +382,177 @@ class TranslationWindow:
         print(f"Exported translation to {output_filename}")
 
     def export_page(self):
-        # Check the active scene is valid
-        selected_scene = self.scene_tree.focus()
-        if selected_scene not in self._translation_db.scene_names():
+        self.export_scene(self.scene_tree.focus())
+
+    def export_all_pages(self):
+        for scene in self._translation_db.scene_names():
+            self.export_scene(scene)
+
+    def export_scene(self, scene_name):
+        if scene_name not in self._translation_db.scene_names():
             return
 
+        # Generate the full export path
+        is_arc_scene = '_ARC' in scene_name
+        is_ciel_scene = '_CIEL' in scene_name
+        is_qa_scene = 'QA' in scene_name
+        is_common_scene = not any([is_arc_scene, is_ciel_scene, is_qa_scene])
+        export_path = [Constants.EXPORT_DIRECTORY]
+        if is_arc_scene or is_ciel_scene:
+            day = int(scene_name.split('_')[0])
+            export_path += [
+                'Arcueid' if is_arc_scene else 'Ciel',
+                f'Day {day}'
+            ]
+        elif is_qa_scene:
+            export_path += ['QA']
+        elif is_common_scene:
+            export_path += ['Common']
+
         # Ensure the export dir exists
+        output_basedir = os.path.join(*export_path)
         try:
-            os.makedirs(Constants.EXPORT_DIRECTORY)
+            os.makedirs(output_basedir)
         except FileExistsError:
             pass
 
         # Export
         output_filename = os.path.join(
-            Constants.EXPORT_DIRECTORY, f"{selected_scene}.txt")
+            output_basedir, f"{scene_name}.txt")
         with open(output_filename, "wb+") as output_file:
             output_file.write(
                 ReadableExporter.export_text(
-                    self._translation_db, selected_scene
+                    self._translation_db, scene_name
                 ).encode('utf-8')
             )
 
-    def export_all_pages_window(self):
-        # Ensure the export dir exists
-        try:
-            os.makedirs(Constants.EXPORT_DIRECTORY)
-        except FileExistsError:
-            pass
-
-        for scene in self._translation_db.scene_names():
-            output_filename = os.path.join(
-                Constants.EXPORT_DIRECTORY, f"{scene}.txt")
-            with open(output_filename, "wb+") as output_file:
-                output_file.write(
-                    ReadableExporter.export_text(
-                        self._translation_db, scene
-                    ).encode('utf-8')
-                )
-
     def import_updates(self):
         # Any goodies for us in the update folder?
+        candidate_files = []
         for basedir, dirs, files in os.walk(Constants.IMPORT_DIRECTORY):
             for filename in files:
                 # Ignore non-text files
                 if not filename.endswith(".txt"):
                     continue
 
-                # Attempt to parse each file as an update
-                try:
-                    # Import the changes from the file
-                    absolute_path = os.path.join(basedir, filename)
-                    self.import_update_file(absolute_path)
+                candidate_files.append(os.path.join(basedir, filename))
 
-                    # If we successfully loaded it, delete it.
-                    os.unlink(absolute_path)
-                except ReadableExporter.ParseError as e:
-                    print(
-                        f"Failed to apply updates from {filename}: "
-                        f"{e}"
-                    )
+        # Generate a consolidated diff and conflict report
+        (consolidated_diff, conflicts) = \
+            self._translation_db.parse_update_file_list(candidate_files)
 
-    def import_update_file(self, filename):
-        # Load the file
-        with open(filename, "rb") as f:
-            file_text = f.read().decode('utf-8')
+        # Clear out the input files
+        for dirent in os.listdir(Constants.IMPORT_DIRECTORY):
+            shutil.rmtree(os.path.join(Constants.IMPORT_DIRECTORY, dirent))
 
-        # Try to parse it to a diff
-        diff = ReadableExporter.import_text(file_text)
+        # Write back the uncontended changes to the DB
+        self._translation_db.apply_diff(consolidated_diff)
 
-        # If we get a good result, apply the changes to the DB
-        for jp_hash, (tl_text, comment_text) in diff.items():
-            self._translation_db.set_translation_and_comment_for_hash(
-                jp_hash, tl_text, comment_text
+        # If there are no conflicts, we are done
+        if not conflicts:
+            return
+
+        self.show_conflict_resolution(conflicts)
+
+    def show_conflict_resolution(self, conflicts):
+        # Cache the active conflict set
+        self._active_conflicts = conflicts
+
+        # Prompt to save the DB
+        self._conflict_dialog = tk.Toplevel(self._root)
+        self._conflict_dialog.title("Resolve Conflicts")
+        self._conflict_dialog.resizable(height=True, width=True)
+        self._conflict_dialog.attributes("-topmost", True)
+        self._conflict_dialog.grab_set()
+
+        # Warning text
+        warning_message = tk.Label(
+            self._conflict_dialog,
+            text=f"Import detected {len(conflicts)} conflicts"
+        )
+        warning_message.grid(row=0, column=0, pady=5)
+
+        # Conflict entries
+        self._conflict_listboxes = []
+        frame_listboxes = tk.Frame(self._conflict_dialog, borderwidth=2)
+        ordered_hashes = sorted(conflicts.keys())
+        for jp_hash in ordered_hashes:
+            conflicting_values = conflicts[jp_hash]
+            tk.Label(
+                frame_listboxes,
+                text=jp_hash
+            ).grid(row=len(self._conflict_listboxes)*2, column=0)
+
+            # Create a listbox to select the correct tl
+            option_listbox = tk.Listbox(
+                frame_listboxes,
+                height=len(conflicting_values),
+                width=64,
+                exportselection=False,
+                selectmode=tk.SINGLE
             )
+            option_listbox.grid(
+                row=len(self._conflict_listboxes)*2+1, column=0, pady=5)
+
+            # Populate
+            idx = 0
+            for (en_text, comment) in conflicting_values:
+                print(en_text)
+                option_listbox.insert(
+                    idx,
+                    en_text
+                )
+                idx += 1
+
+            # Cache a reference
+            self._conflict_listboxes.append(option_listbox)
+        frame_listboxes.grid(row=1, column=0, pady=5)
+
+        # Buttons
+        frame_quit_buttons = tk.Frame(self._conflict_dialog, borderwidth=2)
+        quit_and_save_button = tk.Button(
+            frame_quit_buttons,
+            text="Commit Changes",
+            width=15,
+            command=self.commit_conflict_resolution
+        )
+        quit_and_save_button.grid(row=0, column=0, padx=5, pady=10)
+        quit_button = tk.Button(
+            frame_quit_buttons,
+            text="Cancel",
+            width=15,
+            command=self.dismiss_conflict_resolution
+        )
+        quit_button.grid(row=0, column=1, padx=5, pady=10)
+        frame_quit_buttons.grid(row=2, column=0, pady=5)
+
+    def commit_conflict_resolution(self):
+        # Iterate each of the selectors, and if something is selected commit it
+        ordered_hashes = sorted(self._active_conflicts.keys())
+        for i in range(len(ordered_hashes)):
+            jp_hash = ordered_hashes[i]
+            conflicting_values = self._active_conflicts[jp_hash]
+
+            listbox = self._conflict_listboxes[i]
+            selected_indexes = listbox.curselection()
+            if not selected_indexes:
+                continue
+
+            selected_index = selected_indexes[0]
+            selected_tl = conflicting_values[selected_index]
+
+            print(f"Commit conflict {jp_hash}: {selected_tl[0]}")
+            self._translation_db.set_translation_and_comment_for_hash(
+                jp_hash, selected_tl[0], selected_tl[1])
+
+        # Close the dialog
+        self.dismiss_conflict_resolution()
+
+    def dismiss_conflict_resolution(self):
+        if self._conflict_dialog:
+            self._conflict_dialog.grab_release()
+            self._conflict_dialog.destroy()
+            self._conflict_dialog = None
 
     def import_legacy_updates(self):
         # Scan the legacy update folder for old-style files
@@ -374,7 +565,8 @@ class TranslationWindow:
                 # Import the changes from the file
                 try:
                     absolute_path = os.path.join(basedir, filename)
-                    self.import_legacy_update_file(absolute_path)
+                    self._translation_db.import_legacy_update_file(
+                        absolute_path)
 
                     # If we successfully loaded it, delete it.
                     os.unlink(absolute_path)
@@ -383,53 +575,6 @@ class TranslationWindow:
                         f"Failed to apply updates from {filename}: "
                         f"{e}"
                     )
-
-    def import_legacy_update_file(self, filename):
-        # Can we determine the appropriate scene from this filename?
-        basename = os.path.basename(filename)
-        scene_name = basename[:-4]
-        if scene_name not in self._translation_db.scene_names():
-            print(f"Cannot match file '{basename}' to a scene")
-            return
-
-        # Load the file
-        with open(filename, "rb") as f:
-            file_text = f.read().decode('utf-8')
-
-        # Split into lines and delete page markers
-        raw_lines = [
-            line for line in file_text.split('\n')
-            if line and not line.startswith('<Page')
-        ]
-
-        # Since the old format glued lines, we need to split them back apart.
-        # Just duplicate comments on glued lines to all members.
-        lines = []
-        for line in raw_lines:
-            # Split into tl and comment
-            split_line = line.split('//')
-            glued_en_text = split_line[0]
-            comment_text = split_line[1] if len(split_line) > 1 else None
-
-            # If the TL is actually multiple lines (glued), break it up
-            split_en_text = glued_en_text.split('#')
-            for fragment in split_en_text:
-                lines.append((fragment, comment_text))
-
-        # Get the scene info for this file
-        scene_lines = self._translation_db.lines_for_scene(scene_name)
-
-        # Assert that then number of lines in the file to import matches the
-        # expected number of lines in the scene
-        assert len(scene_lines) == len(lines), \
-            f"File {basename} has {len(lines)} strings, " \
-            f"but scene expects {len(scene_lines)} lines."
-
-        # Zip and update
-        for scene_line, (tl_text, comment_text) in zip(scene_lines, lines):
-            self._translation_db.set_translation_and_comment_for_hash(
-                scene_line.jp_hash, tl_text, comment_text
-            )
 
     def init_line_selector(self):
         self.line_selector_frame = tk.Frame(self.frame_editing, borderwidth=20)
@@ -446,7 +591,7 @@ class TranslationWindow:
             height=32,
             width=18,
             exportselection=False,
-            selectmode=tk.EXTENDED
+            selectmode=tk.SINGLE
         )
         self.listbox_offsets.bind('<Button-1>', self.load_translation_line)
         self.listbox_offsets.bind('<Return>', self.load_translation_line)

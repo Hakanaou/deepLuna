@@ -5,3 +5,4 @@ class Constants:
     EXPORT_DIRECTORY = "export/"
     IMPORT_DIRECTORY = "import/"
     LEGACY_IMPORT_DIRECTORY = "update/"
+    CHARS_PER_LINE = 55

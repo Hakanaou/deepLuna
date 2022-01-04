@@ -66,7 +66,9 @@ class Mzp:
             section_byte_offset = \
                 cumulative_section_size_bytes % cls.EntryHeader.SECTOR_SIZE
             size_sectors = len(section) // cls.EntryHeader.SECTOR_SIZE
-            size_bytes = len(section) % cls.EntryHeader.SECTOR_SIZE
+            size_bytes = len(section) & 0xFFFF
+            if len(section) % cls.EntryHeader.SECTOR_SIZE:
+                size_sectors += 1
             section_header = struct.pack(
                 cls.EntryHeader.HEADER_FORMAT,
                 section_sector_offset,
@@ -76,8 +78,9 @@ class Mzp:
             )
             section_headers.append(section_header)
 
-            # Increment offset counter
-            cumulative_section_size_bytes += len(section)
+            # Increment offset counter.
+            # Include 8 bytes of 0xFF after each section.
+            cumulative_section_size_bytes += len(section) + 8
 
         # Consolidate headers + data
         packed = io.BytesIO()
@@ -86,6 +89,7 @@ class Mzp:
             packed.write(section_header)
         for section in sections:
             packed.write(section)
+            packed.write(b"\xff\xff\xff\xff\xff\xff\xff\xff")
 
         # Return accumulated data
         packed.seek(0, io.SEEK_SET)

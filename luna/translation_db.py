@@ -2,12 +2,16 @@ import io
 import hashlib
 import json
 import multiprocessing
+import os
 import re
 import struct
 import sys
 
+from luna.constants import Constants
 from luna.mrg_parser import Mzp
 from luna.mzx import Mzx
+from luna.readable_exporter import ReadableExporter
+from luna.ruby_utils import RubyUtils
 
 
 class TranslationDb:
@@ -24,9 +28,10 @@ class TranslationDb:
             and any additional comments or context left by translators
     """
 
-    def __init__(self, scene_map, line_by_hash):
+    def __init__(self, scene_map, line_by_hash, charswap_map=None):
         self._scene_map = scene_map
         self._line_by_hash = line_by_hash
+        self._charswap_map = charswap_map or {}
 
     def scene_names(self, include_empty=False):
         all_scenes = list(self._scene_map.keys())
@@ -55,6 +60,12 @@ class TranslationDb:
 
         return float(translated_lines) * 100.0 / float(total_lines)
 
+    def get_charswap_map(self):
+        return self._charswap_map
+
+    def set_charswap_map(self, swap_map):
+        self._charswap_map = swap_map
+
     def as_json(self):
         return json.dumps({
             'scene_map': {
@@ -63,7 +74,8 @@ class TranslationDb:
             },
             'line_by_hash': {
                 k: v.as_json() for k, v in self._line_by_hash.items()
-            }
+            },
+            'charswap_map': self._charswap_map
         }, sort_keys=True, indent=2)
 
     @classmethod
@@ -76,14 +88,18 @@ class TranslationDb:
             k: cls.TLLine.from_json(v)
             for k, v in jsonb['line_by_hash'].items()
         }
-        return cls(scene_map, line_by_hash)
+        charswap_map = jsonb.get('charswap_map')
 
-    def generate_script_text_mrg(self):
+        return cls(scene_map, line_by_hash, charswap_map)
+
+    def generate_script_text_mrg(self, perform_charswap=False):
         # Iterate each scene in the translation DB, apply line breaking
         # and control codes and stick the result into a map of offset -> string
         offset_to_string = {}
-        for scene in self._scene_map.values():
-            for command in scene:
+        for scene_name, scene_commands in self._scene_map.items():
+            cursor_position = 0
+            prev_page_number = None
+            for command in scene_commands:
                 # Pull the translated text for this line
                 tl_line = self._line_by_hash[command.jp_hash]
 
@@ -91,10 +107,51 @@ class TranslationDb:
                 # fall back to the original JP text instead.
                 tl_text = tl_line.en_text or tl_line.jp_text
 
-                # Process the line
-                # TODO(ross)
-                # tl_line.is_glued, is_choice, has_ruby
-                processed_string = tl_text
+                # If this line is not glued to the line that came before it,
+                # reset the accumulated cursor position
+                # However, if this is a QA scene, _all_ lines count as glued
+                # due to modifications to the allscr.
+                if not command.is_glued and not scene_name.startswith('QA'):
+                    cursor_position = 0
+
+                # If we have turned the page, we also want to rezero the
+                # cursor position
+                if command.page_number != prev_page_number:
+                    cursor_position = 0
+
+                # Reify any custom control codes present in the line
+                coded_text = RubyUtils.apply_control_codes(tl_text)
+
+                # If we are performing a charswap, do so now
+                if perform_charswap:
+                    coded_text = ''.join([
+                        self._charswap_map.get(c, c) for c in coded_text
+                    ])
+
+                # Break the text
+                linebroken_text = RubyUtils.linebreak_text(
+                    coded_text,
+                    Constants.CHARS_PER_LINE,
+                    start_cursor_pos=cursor_position
+                )
+
+                # Check if the broken text contains any newlines, and update
+                # the new cursor position accordingly
+                did_break_line = len(linebroken_text.split('\n')) > 1
+                final_broken_line = linebroken_text.split('\n')[-1]
+                if did_break_line:
+                    cursor_position = RubyUtils.noruby_len(final_broken_line)
+                else:
+                    cursor_position += RubyUtils.noruby_len(final_broken_line)
+                    cursor_position = \
+                        cursor_position % Constants.CHARS_PER_LINE
+
+                # Append trailing \r\n if the original text had it
+                processed_string = linebroken_text + (
+                    "\r\n"
+                    if tl_line.jp_text.endswith("\r\n")
+                    and not linebroken_text.endswith("\r\n")
+                    else "")
 
                 # Stick the processed string into our map
                 offset_to_string[command.offset] = processed_string
@@ -112,16 +169,152 @@ class TranslationDb:
             string_table.write(
                 offset_to_string.get(offset, '').encode('utf-8'))
 
-        # Pack the MZP
         offset_table.seek(0, io.SEEK_SET)
         string_table.seek(0, io.SEEK_SET)
-        return Mzp.pack([offset_table.read(), string_table.read()])
+        offset_table_str = offset_table.read()
+        string_table_str = string_table.read()
+
+        # For whatever reason, the MZP also contains 4 offset/string table
+        # pairs consisting of just '  \r\n' . Regenerate these tables too
+        # in case they actually mean something.
+        newline_offset_table = io.BytesIO()
+        newline_string_table = io.BytesIO()
+        for i in range(max_offset + 1):
+            newline_offset_table.write(
+                struct.pack(">I", newline_string_table.tell()))
+            newline_string_table.write(b"  \r\n")
+        newline_offset_table.seek(0, io.SEEK_SET)
+        newline_string_table.seek(0, io.SEEK_SET)
+        newline_offset_table_str = newline_offset_table.read()
+        newline_string_table_str = newline_string_table.read()
+
+        # Pack the MZP
+        return Mzp.pack([
+            # Actual translation data
+            offset_table_str, string_table_str,
+            # 4 copies of newlines
+            newline_offset_table_str, newline_string_table_str,
+            newline_offset_table_str, newline_string_table_str,
+            newline_offset_table_str, newline_string_table_str,
+            newline_offset_table_str, newline_string_table_str,
+        ])
 
     @classmethod
     def from_file(cls, path):
         with open(path, 'rb') as input_file:
             raw_db = input_file.read()
         return cls.from_json(json.loads(raw_db))
+
+    def import_update_file(self, filename):
+        # Parse diff
+        diff = self.parse_update_file(filename)
+
+        # If we get a good result, apply the changes to the DB
+        self.apply_diff(diff)
+
+    def apply_diff(self, diff):
+        for jp_hash, (tl_text, comment_text) in diff.items():
+            self.set_translation_and_comment_for_hash(
+                jp_hash, tl_text, comment_text
+            )
+
+    def parse_update_file(self, filename):
+        # Load the file
+        with open(filename, "rb") as f:
+            file_text = f.read().decode('utf-8')
+
+        # Try to parse it to a diff
+        return ReadableExporter.import_text(file_text)
+
+    def parse_update_file_list(self, filenames):
+        # Load diffs for each file
+        diffs = []
+        for filename in filenames:
+            try:
+                diffs.append(self.parse_update_file(filename))
+            except ReadableExporter.ParseError as e:
+                print(
+                    f"Failed to apply updates from {filename}: "
+                    f"{e}"
+                )
+
+        # Now merge the diffs, but reserve all hashes with conflicting data
+        consolidated_diff = {}
+        conflicts = {}
+        for diff in diffs:
+            for jp_hash, (text, comment) in diff.items():
+                # If the hash is in the consolidated diff, remove it
+                # and generate a conflict entry
+                if jp_hash in consolidated_diff and (
+                        consolidated_diff[jp_hash][0] != text
+                        or consolidated_diff[jp_hash][1] != comment):
+                    conflicts[jp_hash] = [consolidated_diff[jp_hash]]
+                    conflicts[jp_hash].append((text, comment))
+                    continue
+
+                # If the hash matches an existing conflict, append
+                if jp_hash in conflicts:
+                    # If this conflict is a dupe, don't re-add
+                    skip_add = False
+                    for c_text, c_comment in conflicts[jp_hash]:
+                        if c_text == text and c_comment == comment:
+                            skip_add = True
+                            break
+                    if not skip_add:
+                        conflicts[jp_hash].append((text, comment))
+                    continue
+
+                # If the hash wasn't in the consolidated diff, just add
+                consolidated_diff[jp_hash] = (text, comment)
+
+        return consolidated_diff, conflicts
+
+    def import_legacy_update_file(self, filename):
+        # Can we determine the appropriate scene from this filename?
+        basename = os.path.basename(filename)
+        scene_name = basename[:-4]
+        if scene_name not in self._scene_map:
+            print(f"Cannot match file '{basename}' to a scene")
+            return
+
+        # Load the file
+        with open(filename, "rb") as f:
+            file_text = f.read().decode('utf-8')
+
+        # Split into lines and delete page/choice markers
+        raw_lines = [
+            line.replace("C:>", "") for line in file_text.split('\n')
+            if line and not line.startswith('<Page')
+        ]
+
+        # Since the old format glued lines, we need to split them back apart.
+        # Just duplicate comments on glued lines to all members.
+        lines = []
+        for line in raw_lines:
+            # Split into tl and comment
+            split_line = line.split('//')
+            glued_en_text = split_line[0]
+            comment_text = split_line[1] if len(split_line) > 1 else None
+
+            # If the TL is actually multiple lines (glued), break it up
+            split_en_text = glued_en_text.split('#')
+            for fragment in split_en_text:
+                lines.append((fragment, comment_text))
+
+        # Get the scene info for this file
+        scene_lines = self._scene_map[scene_name]
+
+        # Assert that then number of lines in the file to import matches the
+        # expected number of lines in the scene
+        assert len(scene_lines) == len(lines), \
+            f"File {basename} has {len(lines)} strings, " \
+            f"but scene expects {len(scene_lines)} lines."
+
+        # Zip and update
+        for scene_line, (tl_text, comment_text) in zip(scene_lines, lines):
+            self.set_translation_and_comment_for_hash(
+                scene_line.jp_hash, tl_text, comment_text
+            )
 
     @classmethod
     def from_mrg(cls, allscr_path, script_text_path):
@@ -211,6 +404,7 @@ class TranslationDb:
             # script lines
             text_offsets = []
             page_number = 0
+            seen_offsets = set()
             for cmd in script_commands:
                 # If it's a PGST, take argv0 the page counter
                 if cmd.opcode == 'PGST':
@@ -234,6 +428,10 @@ class TranslationDb:
                     text_modifiers = re.compile(r"(\@\w)").findall(arg)
                     offsets = [int(ref[1:]) for ref in text_refs]
                     for offset in offsets:
+                        # If we already saw this offset in the file, just skip
+                        if offset in seen_offsets:
+                            continue
+
                         # Glue if the previous line ends in an @n
                         jp_line = strings_by_content_hash[
                             content_hash_by_offset[offset]]
@@ -241,6 +439,7 @@ class TranslationDb:
                         is_glued = bool(text_offsets) and \
                             bool('@n' in text_offsets[-1].modifiers)
                         has_ruby = '<' in jp_text
+                        seen_offsets.add(offset)
                         text_offsets.append(cls.TextCommand(
                             offset,
                             content_hash_by_offset[offset],
