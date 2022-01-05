@@ -178,6 +178,7 @@ class RubyUtils:
         # Actually break up the line
         broken_lines = []
         acc = ""
+        first_word = True
         for word in splitLine:
             # If adding the next word would overflow, break the line.
             if len(acc + ' ' + word) + start_cursor_pos > max_linelen:
@@ -194,7 +195,8 @@ class RubyUtils:
                 continue
 
             # If we did't just break, then append this word to the line
-            acc = acc + ' ' + word if acc else word
+            acc = acc + ' ' + word if not first_word else word
+            first_word = False
 
         # If there is a trailing accumulator, append it now.
         if acc:
