@@ -305,7 +305,7 @@ def main():
         tl_db.parse_update_file_list(candidate_files)
 
     # Apply non-conflict data immediately
-    tl_db.apply_diff(consolidated_diff, allow_creation=True)
+    tl_db.apply_diff(consolidated_diff)
 
     # If there are conflicts, well that's a lint error
     lint_results = []
