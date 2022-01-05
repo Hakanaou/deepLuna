@@ -258,7 +258,7 @@ class TranslationDb:
         self.apply_diff(diff)
 
     def apply_diff(self, diff, allow_creation=False):
-        for jp_hash, (tl_text, comment_text) in diff.items():
+        for jp_hash, (_filename, tl_text, comment_text) in diff.items():
             self.set_translation_and_comment_for_hash(
                 jp_hash, tl_text, comment_text,
                 allow_creation=allow_creation
@@ -274,10 +274,10 @@ class TranslationDb:
 
     def parse_update_file_list(self, filenames):
         # Load diffs for each file
-        diffs = []
+        diffs = {}
         for filename in filenames:
             try:
-                diffs.append(self.parse_update_file(filename))
+                diffs[filename] = self.parse_update_file(filename)
             except ReadableExporter.ParseError as e:
                 print(
                     f"Failed to apply updates from {filename}: "
@@ -287,31 +287,31 @@ class TranslationDb:
         # Now merge the diffs, but reserve all hashes with conflicting data
         consolidated_diff = {}
         conflicts = {}
-        for diff in diffs:
+        for filename, diff in diffs.items():
             for jp_hash, (text, comment) in diff.items():
                 # If the hash is in the consolidated diff, remove it
                 # and generate a conflict entry
                 if jp_hash in consolidated_diff and (
-                        consolidated_diff[jp_hash][0] != text
-                        or consolidated_diff[jp_hash][1] != comment):
+                        consolidated_diff[jp_hash][1] != text
+                        or consolidated_diff[jp_hash][2] != comment):
                     conflicts[jp_hash] = [consolidated_diff[jp_hash]]
-                    conflicts[jp_hash].append((text, comment))
+                    conflicts[jp_hash].append((filename, text, comment))
                     continue
 
                 # If the hash matches an existing conflict, append
                 if jp_hash in conflicts:
                     # If this conflict is a dupe, don't re-add
                     skip_add = False
-                    for c_text, c_comment in conflicts[jp_hash]:
+                    for _c_filename, c_text, c_comment in conflicts[jp_hash]:
                         if c_text == text and c_comment == comment:
                             skip_add = True
                             break
                     if not skip_add:
-                        conflicts[jp_hash].append((text, comment))
+                        conflicts[jp_hash].append((filename, text, comment))
                     continue
 
                 # If the hash wasn't in the consolidated diff, just add
-                consolidated_diff[jp_hash] = (text, comment)
+                consolidated_diff[jp_hash] = (filename, text, comment)
 
         return consolidated_diff, conflicts
 

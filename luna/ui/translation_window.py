@@ -382,7 +382,8 @@ class TranslationWindow:
         print(f"Exported translation to {output_filename}")
 
     def export_page(self):
-        self.export_scene(self.scene_tree.focus())
+        self._translation_db.export_scene(
+            self.scene_tree.focus(), Constants.EXPORT_DIRECTORY)
 
     def export_all_pages(self):
         for scene in self._translation_db.scene_names():
@@ -459,7 +460,7 @@ class TranslationWindow:
 
             # Populate
             idx = 0
-            for (en_text, comment) in conflicting_values:
+            for (filename, en_text, comment) in conflicting_values:
                 option_listbox.insert(
                     idx,
                     en_text
@@ -505,7 +506,7 @@ class TranslationWindow:
 
             print(f"Commit conflict {jp_hash}: {selected_tl[0]}")
             self._translation_db.set_translation_and_comment_for_hash(
-                jp_hash, selected_tl[0], selected_tl[1])
+                jp_hash, selected_tl[1], selected_tl[2])
 
         # Close the dialog
         self.dismiss_conflict_resolution()

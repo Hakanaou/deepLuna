@@ -246,7 +246,7 @@ def report_results(lint_results):
         return
 
     for result in lint_results:
-        indent = "\t" if result.line[0] != '\t' else ""
+        indent = "\t" if (result.line and result.line[0] != '\t') else ""
         print(
             Color(Color.RED)(
                 f"{result.linter}: {result.filename}: {result.page}\n") +
@@ -311,25 +311,20 @@ def main():
     lint_results = []
     if conflicts:
         for sha, candidates in conflicts.items():
-            line = tl_db.tl_line_with_hash(sha)
-            msg = (
-                f"Conflict for line {sha}:\n"
-                f"  JP:    {line.jp_text.rstrip()}\n"
-                f"  DB EN: {line.en_text}\n"
-                "  Imported candidates:\n"
-            )
-            for en_text, comment in candidates:
+            msg = "Imported candidates:\n"
+            for filename, en_text, comment in candidates:
                 msg += (
-                    f"    {en_text} // {comment.rstrip()}"
+                    f"\t{os.path.basename(filename)}: {en_text} "
+                    f"// {comment.rstrip()}\n"
                     if comment else
-                    f"    {en_text}\n"
+                    f"\t{os.path.basename(filename)}: {en_text}\n"
                 )
             lint_results.append(LintResult(
                 'LintImportConflicts',
                 'None',
                 -1,
-                -1,
-                msg
+                f"Conflict for line {sha}:",
+                msg[:-1]
             ))
 
     # Iterate each scene
