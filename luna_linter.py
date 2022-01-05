@@ -311,7 +311,8 @@ def main():
     lint_results = []
     if conflicts:
         for sha, candidates in conflicts.items():
-            msg = "Imported candidates:\n"
+            line = tl_db.tl_line_with_hash(sha)
+            msg = f"JP Line: {line.jp_text.rstrip()}\n\tImported candidates:\n"
             for filename, en_text, comment in candidates:
                 msg += (
                     f"\t{os.path.basename(filename)}: {en_text} "

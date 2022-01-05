@@ -102,11 +102,11 @@ def perform_import(tl_db, args):
             f"  DB EN: {line.en_text}\n"
             "  Imported candidates:"
         )
-        for en_text, comment in candidates:
+        for filename, en_text, comment in candidates:
             print(
-                f"    {en_text} // {comment.rstrip()}"
+                f"    {filename}: {en_text} // {comment.rstrip()}"
                 if comment else
-                f"    {en_text}"
+                f"    {filename}: {en_text}"
             )
 
     # If we had conflicts and are in strict mode, bail

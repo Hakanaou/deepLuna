@@ -289,8 +289,13 @@ class TranslationDb:
         conflicts = {}
         for filename, diff in diffs.items():
             for jp_hash, (text, comment) in diff.items():
-                # If the hash is in the consolidated diff, remove it
-                # and generate a conflict entry
+                # Ignore empty sections
+                if not text and not comment:
+                    continue
+
+                # If the hash is in the consolidated diff, and that diff entry
+                # has a valid translation, remove it and generate
+                # a conflict entry
                 if jp_hash in consolidated_diff and (
                         consolidated_diff[jp_hash][1] != text
                         or consolidated_diff[jp_hash][2] != comment):

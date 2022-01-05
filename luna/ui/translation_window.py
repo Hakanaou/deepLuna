@@ -762,6 +762,7 @@ class TranslationWindow:
             idx += 1
 
         # Update current day translated percent
+        print(f"translated count: {translated_count} idx: {idx}")
         self.percent_translated_day.delete("1.0", tk.END)
         self.percent_translated_day.insert(
             "1.0",
