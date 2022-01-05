@@ -381,6 +381,29 @@ class TranslationWindow:
 
         print(f"Exported translation to {output_filename}")
 
+        # Dialog
+        self._warning = tk.Toplevel(self._root)
+        self._warning.title("Injection Complete")
+        self._warning.resizable(height=False, width=False)
+        self._warning.attributes("-topmost", True)
+        self._warning.grab_set()
+
+        # Set message
+        warning_message = tk.Label(
+            self._warning,
+            text=f"Script injected to {output_filename}",
+            justify=tk.LEFT
+        )
+        warning_message.grid(row=0, column=0, padx=5, pady=5)
+
+        # Button choices
+        warning_button = tk.Button(
+            self._warning,
+            text="OK",
+            command=self.close_warning
+        )
+        warning_button.grid(row=1, column=0, pady=10)
+
     def export_page(self):
         self._translation_db.export_scene(
             self.scene_tree.focus(), Constants.EXPORT_DIRECTORY)
