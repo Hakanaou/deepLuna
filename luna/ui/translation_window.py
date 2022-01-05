@@ -405,8 +405,8 @@ class TranslationWindow:
             self._translation_db.parse_update_file_list(candidate_files)
 
         # Clear out the input files
-        for dirent in os.listdir(Constants.IMPORT_DIRECTORY):
-            shutil.rmtree(os.path.join(Constants.IMPORT_DIRECTORY, dirent))
+        shutil.rmtree(os.path.join(Constants.IMPORT_DIRECTORY))
+        os.makedirs(Constants.IMPORT_DIRECTORY)
 
         # Write back the uncontended changes to the DB
         self._translation_db.apply_diff(consolidated_diff)
@@ -460,7 +460,6 @@ class TranslationWindow:
             # Populate
             idx = 0
             for (en_text, comment) in conflicting_values:
-                print(en_text)
                 option_listbox.insert(
                     idx,
                     en_text
