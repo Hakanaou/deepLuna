@@ -243,6 +243,10 @@ class TranslationDb:
             raw_db = input_file.read()
         return cls.from_json(json.loads(raw_db))
 
+    def to_file(self, path):
+        with open(path, 'wb+') as output:
+            output.write(self.as_json().encode('utf-8'))
+
     def import_update_file(self, filename):
         # Parse diff
         diff = self.parse_update_file(filename)

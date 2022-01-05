@@ -15,7 +15,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--db_path',
+        '--db-path',
         dest='db_path',
         action='store',
         help="Path to translation DB file",
@@ -23,10 +23,23 @@ def parse_args():
     )
 
     parser.add_argument(
+        '--extract-mrg',
+        dest='do_extract',
+        action='store_true',
+        help="Regenerate DB from MRG files"
+    )
+
+    parser.add_argument(
         '--import',
         dest='import_path',
         action='store',
         help="Import update files from the specified path"
+    )
+    parser.add_argument(
+        '--legacy-import',
+        dest='legacy_import_path',
+        action='store',
+        help="Import legacy-style update files from the specified path"
     )
     parser.add_argument(
         '--strict-import',
@@ -102,13 +115,35 @@ def perform_import(tl_db, args):
         raise SystemExit(-1)
 
     # Write back changes to disk
-    with open(args.db_path, 'wb+') as output:
-        output.write(tl_db.as_json().encode('utf-8'))
+    tl_db.to_file(args.db_path)
 
     # Clean up afterwards?
     if args.delete:
         for dirent in os.listdir(args.import_path):
             shutil.rmtree(os.path.join(args.import_path, dirent))
+
+
+def perform_legacy_import(tl_db, args):
+    # Search for text files in the import tree
+    for basedir, dirs, files in os.walk(args.legacy_import_path):
+        for filename in files:
+            # Ignore non-text files
+            if not filename.endswith(".txt"):
+                continue
+
+            try:
+                tl_db.import_legacy_update_file(
+                    os.path.join(basedir, filename))
+            except AssertionError as e:
+                if args.strict_import:
+                    raise e
+                else:
+                    print(e)
+
+    # Clean up afterwards?
+    if args.delete:
+        for dirent in os.listdir(args.legacy_import_path):
+            shutil.rmtree(os.path.join(args.legacy_import_path, dirent))
 
 
 def perform_inject(tl_db, args):
@@ -135,12 +170,22 @@ def perform_export(tl_db, args):
 def main():
     args = parse_args()
 
+    # Do we need to extract the DB?
+    tl_db = None
+    if args.do_extract:
+        tl_db = TranslationDb.from_mrg("allscr.mrg", "script_text.mrg")
+        tl_db.to_file(args.db_path)
+    else:
+        tl_db = TranslationDb.from_file(args.db_path)
+
     # Try and load the TL DB
     tl_db = TranslationDb.from_file(args.db_path)
 
     # Import anything?
     if args.import_path:
         perform_import(tl_db, args)
+    if args.legacy_import_path:
+        perform_legacy_import(tl_db, args)
 
     # Inject anything?
     if args.do_inject:
