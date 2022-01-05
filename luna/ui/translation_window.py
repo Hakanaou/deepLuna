@@ -765,7 +765,7 @@ class TranslationWindow:
         self.percent_translated_day.delete("1.0", tk.END)
         self.percent_translated_day.insert(
             "1.0",
-            str(round(translated_count*100/min(idx, 1), 1))+"%")
+            str(round(translated_count*100/max(idx, 1), 1))+"%")
         self._name_day.set(scene + ": ")
 
     def load_translation_line(self, _event):
