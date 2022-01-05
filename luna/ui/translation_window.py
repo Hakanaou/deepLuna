@@ -406,8 +406,11 @@ class TranslationWindow:
             self._translation_db.parse_update_file_list(candidate_files)
 
         # Clear out the input files
-        shutil.rmtree(os.path.join(Constants.IMPORT_DIRECTORY))
-        os.makedirs(Constants.IMPORT_DIRECTORY)
+        for basedir, dirs, files in os.walk(Constants.IMPORT_DIRECTORY):
+            for dirname in dirs:
+                shutil.rmtree(os.path.join(basedir, dirname))
+            for filename in files:
+                os.unlink(os.path.join(basedir, filename))
 
         # Write back the uncontended changes to the DB
         self._translation_db.apply_diff(consolidated_diff)
@@ -463,7 +466,7 @@ class TranslationWindow:
             for (filename, en_text, comment) in conflicting_values:
                 option_listbox.insert(
                     idx,
-                    en_text
+                    f"{os.path.basename(filename)}: {en_text}"
                 )
                 idx += 1
 
@@ -504,7 +507,7 @@ class TranslationWindow:
             selected_index = selected_indexes[0]
             selected_tl = conflicting_values[selected_index]
 
-            print(f"Commit conflict {jp_hash}: {selected_tl[0]}")
+            print(f"Commit conflict {jp_hash}: {selected_tl[1]}")
             self._translation_db.set_translation_and_comment_for_hash(
                 jp_hash, selected_tl[1], selected_tl[2])
 

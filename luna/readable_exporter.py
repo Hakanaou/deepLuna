@@ -238,7 +238,9 @@ class ReadableExporter:
             human_comment = ""
             if tl_info.comment:
                 for comment in tl_info.comment.split("\n"):
-                    human_comment += f"// {comment}\n"
+                    if not comment.strip():
+                        continue
+                    human_comment += f"// {comment.strip()}\n"
 
             # If there is no translation, leave a machine comment
             tl_text = (
