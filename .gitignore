@@ -28,3 +28,6 @@ DEBUG/
 BACKUP/
 update/
 export/
+
+# Ignore translation database
+deepluna_db.json
