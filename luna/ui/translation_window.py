@@ -444,10 +444,11 @@ class TranslationWindow:
         frame_listboxes = tk.Frame(self._conflict_dialog, borderwidth=2)
         ordered_hashes = sorted(conflicts.keys())
         for jp_hash in ordered_hashes:
+            jp_text = self._translation_db.tl_line_with_hash(jp_hash).jp_text
             conflicting_values = conflicts[jp_hash]
             tk.Label(
                 frame_listboxes,
-                text=jp_hash
+                text=f"{jp_hash}\n{jp_text.rstrip()}"
             ).grid(row=len(self._conflict_listboxes)*2, column=0)
 
             # Create a listbox to select the correct tl
