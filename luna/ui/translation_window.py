@@ -455,7 +455,7 @@ class TranslationWindow:
             option_listbox = tk.Listbox(
                 frame_listboxes,
                 height=len(conflicting_values),
-                width=64,
+                width=128,
                 exportselection=False,
                 selectmode=tk.SINGLE
             )
