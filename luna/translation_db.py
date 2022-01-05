@@ -46,7 +46,10 @@ class TranslationDb:
     def tl_line_with_hash(self, jp_hash):
         return self._line_by_hash[jp_hash]
 
-    def set_translation_and_comment_for_hash(self, jp_hash, en_text, comment):
+    def set_translation_and_comment_for_hash(self, jp_hash, en_text, comment,
+                                             allow_creation=False):
+        if jp_hash not in self._line_by_hash and allow_creation:
+            self._line_by_hash[jp_hash] = self.TLLine(None)
         self._line_by_hash[jp_hash].en_text = en_text
         self._line_by_hash[jp_hash].comment = comment
 
@@ -254,10 +257,11 @@ class TranslationDb:
         # If we get a good result, apply the changes to the DB
         self.apply_diff(diff)
 
-    def apply_diff(self, diff):
+    def apply_diff(self, diff, allow_creation=False):
         for jp_hash, (tl_text, comment_text) in diff.items():
             self.set_translation_and_comment_for_hash(
-                jp_hash, tl_text, comment_text
+                jp_hash, tl_text, comment_text,
+                allow_creation=allow_creation
             )
 
     def parse_update_file(self, filename):
