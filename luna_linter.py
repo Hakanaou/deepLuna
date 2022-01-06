@@ -309,7 +309,7 @@ def main():
 
     # If there are conflicts, well that's a lint error
     lint_results = []
-    if import_diff.any_conflicts:
+    if import_diff.any_conflicts():
         for sha, entry_group in import_diff.entries_by_sha.items():
             # Ignore the non-conflicting entries
             if entry_group.is_unique():

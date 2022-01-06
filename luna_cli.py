@@ -110,7 +110,7 @@ def perform_import(tl_db, args):
     tl_db.apply_diff(import_diff)
 
     # If there are conflicts, print them
-    if import_diff.any_conflicts:
+    if import_diff.any_conflicts():
         for sha, entry_group in import_diff.entries_by_sha.items():
             # Ignore the non-conflicting entries
             if entry_group.is_unique():
@@ -143,8 +143,12 @@ def perform_import(tl_db, args):
 
     # Clean up afterwards?
     if args.delete:
-        for dirent in os.listdir(args.import_path):
-            shutil.rmtree(os.path.join(args.import_path, dirent))
+        # Clear out the input files
+        for basedir, dirs, files in os.walk(args.import_path):
+            for dirname in dirs:
+                shutil.rmtree(os.path.join(basedir, dirname))
+            for filename in files:
+                os.unlink(os.path.join(basedir, filename))
 
 
 def perform_legacy_import(tl_db, args):
@@ -166,8 +170,11 @@ def perform_legacy_import(tl_db, args):
 
     # Clean up afterwards?
     if args.delete:
-        for dirent in os.listdir(args.legacy_import_path):
-            shutil.rmtree(os.path.join(args.legacy_import_path, dirent))
+        for basedir, dirs, files in os.walk(args.legacy_import_path):
+            for dirname in dirs:
+                shutil.rmtree(os.path.join(basedir, dirname))
+            for filename in files:
+                os.unlink(os.path.join(basedir, filename))
 
 
 def perform_inject(tl_db, args):
