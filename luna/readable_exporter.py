@@ -37,10 +37,82 @@ class ReadableExporter:
         PARSE_MACHINE_COMMENT = 4
         PARSE_HUMAN_COMMENT = 5
 
+    class Diff:
+        class EntryGroup:
+            def __init__(self):
+                self.entries = []
+
+            def add_entry(self, entry):
+                self.entries.append(entry)
+
+            def is_unique(self):
+                if not self.entries:
+                    return True
+
+                # If any entries don't match, non-unique
+                for i in range(1, len(self.entries)):
+                    if self.entries[i].en_text != self.entries[0].en_text or \
+                       self.entries[i].comment != self.entries[0].comment:
+                        return False
+
+                return True
+
+        class Entry:
+            def __init__(self, filename, line, en_text, comment):
+                self.filename = filename
+                self.line = line
+                self.en_text = en_text
+                self.comment = comment
+
+            def __repr__(self):
+                return (
+                    f"Diff.Entry(filename='{self.filename}', "
+                    f"line={self.line}, en_text='{self.en_text}', "
+                    f"comment='{self.comment}')"
+                )
+
+        def __init__(self):
+            # Map of sha to list of entry
+            self.entries_by_sha = {}
+
+        def __repr__(self):
+            ret = "Diff("
+            for sha, entries in self.entries_by_sha.items():
+                ret += f"{sha}: {entries}, "
+            return ret
+
+        def any_conflicts(self):
+            for entry_group in self.entries_by_sha.values():
+                if not entry_group.is_unique():
+                    return True
+
+            return False
+
+        def add_entry(self, sha, filename, line, en_text, comment):
+            if sha not in self.entries_by_sha:
+                self.entries_by_sha[sha] = self.EntryGroup()
+
+            self.entries_by_sha[sha].add_entry(self.Entry(
+                filename,
+                line,
+                en_text,
+                comment
+            ))
+
+        def append_diff(self, other):
+            for sha in other.entries_by_sha:
+                if sha not in self.entries_by_sha:
+                    self.entries_by_sha[sha] = self.EntryGroup()
+                for entry in other.entries_by_sha[sha].entries:
+                    self.entries_by_sha[sha].add_entry(entry)
+
     @classmethod
-    def import_text(cls, file_text):
-        # Generates a map of hash -> TLLine
-        ret = {}
+    def import_text(cls, filename):
+        ret = cls.Diff()
+
+        # Read the file data
+        with open(filename, 'rb') as f:
+            file_text = f.read().decode('utf-8')
 
         state = cls.LexState.EXPECT_BLOCK
         cmd_acc = ""
@@ -150,7 +222,10 @@ class ReadableExporter:
                         # Create a new entry in our return map
                         # If there is no valid tl or comments, use None instead
                         # of empty string as an indicator
-                        ret[active_content_hash] = (
+                        ret.add_entry(
+                            active_content_hash,
+                            filename,
+                            line_counter,
                             translated_text or None,
                             human_comments or None
                         )
