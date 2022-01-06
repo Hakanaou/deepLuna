@@ -424,29 +424,38 @@ class TranslationWindow:
 
                 candidate_files.append(os.path.join(basedir, filename))
 
-        # Generate a consolidated diff and conflict report
-        (consolidated_diff, conflicts) = \
-            self._translation_db.parse_update_file_list(candidate_files)
+        # Generate a diff
+        import_diff = self._translation_db.parse_update_file_list(
+            candidate_files)
+
+        # Apply non-conflict data immediately
+        self._translation_db.apply_diff(import_diff)
 
         # Clear out the input files
         for basedir, dirs, files in os.walk(Constants.IMPORT_DIRECTORY):
             for dirname in dirs:
                 shutil.rmtree(os.path.join(basedir, dirname))
+                pass
             for filename in files:
                 os.unlink(os.path.join(basedir, filename))
-
-        # Write back the uncontended changes to the DB
-        self._translation_db.apply_diff(consolidated_diff)
+                pass
 
         # If there are no conflicts, we are done
-        if not conflicts:
+        if not import_diff.any_conflicts():
             return
 
-        self.show_conflict_resolution(conflicts)
+        self.show_conflict_resolution(import_diff)
 
-    def show_conflict_resolution(self, conflicts):
+    def show_conflict_resolution(self, diff):
         # Cache the active conflict set
-        self._active_conflicts = conflicts
+        self._active_conflicts = {
+            sha: entry_group
+            for sha, entry_group
+            in diff.entries_by_sha.items()
+            if not entry_group.is_unique()
+        }
+
+        print(f"Conflict count: {len(self._active_conflicts)} ")
 
         # Prompt to save the DB
         self._conflict_dialog = tk.Toplevel(self._root)
@@ -458,17 +467,17 @@ class TranslationWindow:
         # Warning text
         warning_message = tk.Label(
             self._conflict_dialog,
-            text=f"Import detected {len(conflicts)} conflicts"
+            text=f"Import detected {len(self._active_conflicts)} conflicts"
         )
         warning_message.grid(row=0, column=0, pady=5)
 
         # Conflict entries
         self._conflict_listboxes = []
         frame_listboxes = tk.Frame(self._conflict_dialog, borderwidth=2)
-        ordered_hashes = sorted(conflicts.keys())
+        ordered_hashes = sorted(self._active_conflicts.keys())
         for jp_hash in ordered_hashes:
             jp_text = self._translation_db.tl_line_with_hash(jp_hash).jp_text
-            conflicting_values = conflicts[jp_hash]
+            entry_group = self._active_conflicts[jp_hash]
             tk.Label(
                 frame_listboxes,
                 text=f"{jp_hash}\n{jp_text.rstrip()}"
@@ -477,26 +486,31 @@ class TranslationWindow:
             # Create a listbox to select the correct tl
             option_listbox = tk.Listbox(
                 frame_listboxes,
-                height=len(conflicting_values),
-                width=128,
+                height=len(entry_group.entries),
                 exportselection=False,
                 selectmode=tk.SINGLE
             )
             option_listbox.grid(
-                row=len(self._conflict_listboxes)*2+1, column=0, pady=5)
+                row=len(self._conflict_listboxes)*2+1,
+                column=0,
+                pady=5,
+                sticky="nswe"
+            )
 
             # Populate
             idx = 0
-            for (filename, en_text, comment) in conflicting_values:
+            for entry in entry_group.entries:
                 option_listbox.insert(
                     idx,
-                    f"{os.path.basename(filename)}: {en_text}"
+                    f"{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"{entry.en_text}"
                 )
                 idx += 1
 
             # Cache a reference
             self._conflict_listboxes.append(option_listbox)
-        frame_listboxes.grid(row=1, column=0, pady=5)
+        frame_listboxes.grid_columnconfigure(0, weight=1)
+        frame_listboxes.grid(row=1, column=0, pady=5, sticky="nsew")
 
         # Buttons
         frame_quit_buttons = tk.Frame(self._conflict_dialog, borderwidth=2)
@@ -516,12 +530,17 @@ class TranslationWindow:
         quit_button.grid(row=0, column=1, padx=5, pady=10)
         frame_quit_buttons.grid(row=2, column=0, pady=5)
 
+        self._conflict_dialog.grid_columnconfigure(0, weight=1)
+        self._conflict_dialog.grid_rowconfigure(0, weight=0)
+        self._conflict_dialog.grid_rowconfigure(1, weight=1)
+        self._conflict_dialog.grid_rowconfigure(2, weight=0)
+
     def commit_conflict_resolution(self):
         # Iterate each of the selectors, and if something is selected commit it
         ordered_hashes = sorted(self._active_conflicts.keys())
         for i in range(len(ordered_hashes)):
             jp_hash = ordered_hashes[i]
-            conflicting_values = self._active_conflicts[jp_hash]
+            entry_group = self._active_conflicts[jp_hash]
 
             listbox = self._conflict_listboxes[i]
             selected_indexes = listbox.curselection()
@@ -529,11 +548,11 @@ class TranslationWindow:
                 continue
 
             selected_index = selected_indexes[0]
-            selected_tl = conflicting_values[selected_index]
+            selected_tl = entry_group.entries[selected_index]
 
-            print(f"Commit conflict {jp_hash}: {selected_tl[1]}")
+            print(f"Commit conflict {jp_hash}: {selected_tl.en_text}")
             self._translation_db.set_translation_and_comment_for_hash(
-                jp_hash, selected_tl[1], selected_tl[2])
+                jp_hash, selected_tl.en_text, selected_tl.comment)
 
         # Close the dialog
         self.dismiss_conflict_resolution()
