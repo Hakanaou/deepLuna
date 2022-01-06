@@ -291,7 +291,7 @@ def main():
     args = parser.parse_args(sys.argv[1:])
     tl_db = TranslationDb.from_file(args.db_path)
 
-    # Import the script
+    # Search for files to import
     candidate_files = []
     for basedir, dirs, files in os.walk(args.script_path):
         for filename in files:
@@ -301,30 +301,36 @@ def main():
 
             candidate_files.append(os.path.join(basedir, filename))
 
-    (consolidated_diff, conflicts) = \
-        tl_db.parse_update_file_list(candidate_files)
+    # Generate a diff
+    import_diff = tl_db.parse_update_file_list(candidate_files)
 
     # Apply non-conflict data immediately
-    tl_db.apply_diff(consolidated_diff)
+    tl_db.apply_diff(import_diff)
 
     # If there are conflicts, well that's a lint error
     lint_results = []
-    if conflicts:
-        for sha, candidates in conflicts.items():
+    if import_diff.any_conflicts:
+        for sha, entry_group in import_diff.entries_by_sha.items():
+            # Ignore the non-conflicting entries
+            if entry_group.is_unique():
+                continue
+
             line = tl_db.tl_line_with_hash(sha)
-            msg = f"JP Line: {line.jp_text.rstrip()}\n\tImported candidates:\n"
-            for filename, en_text, comment in candidates:
+            msg = "Imported candidates:\n"
+            for entry in entry_group.entries:
                 msg += (
-                    f"\t{os.path.basename(filename)}: {en_text} "
-                    f"// {comment.rstrip()}\n"
-                    if comment else
-                    f"\t{os.path.basename(filename)}: {en_text}\n"
+                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"{entry.en_text} "
+                    f"// {entry.comment.rstrip()}\n"
+                    if entry.comment else
+                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"{entry.en_text}\n"
                 )
             lint_results.append(LintResult(
                 'LintImportConflicts',
-                'None',
-                -1,
-                f"Conflict for line {sha}:",
+                sha,
+                len(entry_group.entries),
+                f"JP line: {line.jp_text.rstrip()}",
                 msg[:-1]
             ))
 

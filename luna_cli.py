@@ -9,6 +9,22 @@ from luna.constants import Constants
 from luna.translation_db import TranslationDb
 
 
+class Color:
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    MAGENTA = '\033[35m'
+    CYAN = '\033[36m'
+    ENDC = '\033[0m'
+
+    def __init__(self, color):
+        self.color = color
+
+    def __call__(self, text):
+        return f"{self.color}{text}{Color.ENDC}"
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="deepLuna CLI"
@@ -87,32 +103,40 @@ def perform_import(tl_db, args):
 
             candidate_files.append(os.path.join(basedir, filename))
 
-    (consolidated_diff, conflicts) = \
-        tl_db.parse_update_file_list(candidate_files)
+    # Generate a diff
+    import_diff = tl_db.parse_update_file_list(candidate_files)
 
     # Apply non-conflict data immediately
-    tl_db.apply_diff(consolidated_diff)
+    tl_db.apply_diff(import_diff)
 
-    # Print conflict info
-    for sha, candidates in conflicts.items():
-        line = tl_db.tl_line_with_hash(sha)
-        print(
-            f"Conflict for line {sha}:\n"
-            f"  JP:    {line.jp_text.rstrip()}\n"
-            f"  DB EN: {line.en_text}\n"
-            "  Imported candidates:"
-        )
-        for filename, en_text, comment in candidates:
+    # If there are conflicts, print them
+    if import_diff.any_conflicts:
+        for sha, entry_group in import_diff.entries_by_sha.items():
+            # Ignore the non-conflicting entries
+            if entry_group.is_unique():
+                continue
+
+            line = tl_db.tl_line_with_hash(sha)
+            msg = "Imported candidates:\n"
+            for entry in entry_group.entries:
+                msg += (
+                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"{entry.en_text} "
+                    f"// {entry.comment.rstrip()}\n"
+                    if entry.comment else
+                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"{entry.en_text}\n"
+                )
             print(
-                f"    {filename}: {en_text} // {comment.rstrip()}"
-                if comment else
-                f"    {filename}: {en_text}"
+                Color(Color.RED)(f"Import conflict for line {sha}:\n") +
+                Color(Color.YELLOW)(f"JP line: {line.jp_text.rstrip()}\n") +
+                Color(Color.CYAN)(f"{msg}")
             )
 
-    # If we had conflicts and are in strict mode, bail
-    if conflicts and args.strict_import:
-        print("Conflicts found, aborting")
-        raise SystemExit(-1)
+        # If we had conflicts and are in strict mode, bail
+        if args.strict_import:
+            print("Conflicts found, aborting")
+            raise SystemExit(-1)
 
     # Write back changes to disk
     tl_db.to_file(args.db_path)
