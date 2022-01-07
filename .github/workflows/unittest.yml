@@ -1,7 +1,7 @@
-name: Script Linter
+name: Python Unit Tests
 on: [push]
 jobs:
-  Script-Lint:
+  Unit-Test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
