@@ -184,7 +184,8 @@ class RubyUtils:
         first_word = True
         for word in splitLine:
             # If adding the next word would overflow, break the line.
-            if cls.noruby_len(acc + ' ' + word) + start_cursor_pos > max_linelen:
+            len_if_added = cls.noruby_len(acc + ' ' + word) + start_cursor_pos
+            if len_if_added > max_linelen:
                 broken_lines.append(acc)
                 # If we line break _right_ at 55 chars, and the next char is
                 # a _forced_ linebreak, we'd end up double-breaking.
