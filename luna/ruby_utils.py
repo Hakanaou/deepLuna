@@ -186,7 +186,9 @@ class RubyUtils:
             # If adding the next word would overflow, break the line.
             if len(acc + ' ' + word) + start_cursor_pos > max_linelen:
                 broken_lines.append(acc)
-                acc = word
+                # If we line break _right_ at 55 chars, and the next char is
+                # a _forced_ linebreak, we'd end up double-breaking.
+                acc = word if word != "\n" else ""
                 start_cursor_pos = 0
                 continue
 
