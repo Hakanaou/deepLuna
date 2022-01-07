@@ -203,7 +203,9 @@ class RubyUtils:
             first_word = False
 
         # If there is a trailing accumulator, append it now.
-        if acc:
+        # If the final character in the string was a newline, the accumulator
+        # will be empty but still meaningful, so keep it.
+        if acc or splitLine[-1] == '\n':
             broken_lines.append(acc)
 
         # Join our line fragments back together with \n
