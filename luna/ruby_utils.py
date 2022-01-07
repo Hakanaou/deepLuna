@@ -46,7 +46,7 @@ class RubyUtils:
 
             # If we see a space and are _not_ inside a ruby group, copy the
             # accumulator to the output list and zero it out
-            if c == ' ' or c == '\n' and not processing_ruby:
+            if (c == ' ' or c == '\n') and not processing_ruby:
                 ret.append(acc)
                 # Preserve line breaks
                 if c == '\n':
