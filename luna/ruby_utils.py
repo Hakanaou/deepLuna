@@ -195,6 +195,7 @@ class RubyUtils:
                 broken_lines.append(acc)
                 acc = ""
                 start_cursor_pos = 0
+                first_word = True
                 continue
 
             # If we did't just break, then append this word to the line
