@@ -155,6 +155,7 @@ class TranslationDb:
                 # If we have turned the page, we also want to rezero the
                 # cursor position
                 if command.page_number != prev_page_number:
+                    prev_page_number = command.page_number
                     cursor_position = 0
 
                 # Reify any custom control codes present in the line
