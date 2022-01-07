@@ -151,6 +151,7 @@ class LintVerbotenUnicode:
         '…': '...',
         '“': '"',
         '”': '"',
+        '’': '\'',
     }
 
     def __call__(self, scene_name, pages):
