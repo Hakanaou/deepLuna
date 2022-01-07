@@ -137,6 +137,7 @@ class TranslationDb:
         for scene_name, scene_commands in self._scene_map.items():
             cursor_position = 0
             prev_page_number = None
+            scene_is_qa = scene_name.startswith('QA')
             for command in scene_commands:
                 # Pull the translated text for this line
                 tl_line = self._line_by_hash[command.jp_hash]
@@ -149,7 +150,7 @@ class TranslationDb:
                 # reset the accumulated cursor position
                 # However, if this is a QA scene, _all_ lines count as glued
                 # due to modifications to the allscr.
-                if not command.is_glued and not scene_name.startswith('QA'):
+                if not command.is_glued and not scene_is_qa:
                     cursor_position = 0
 
                 # If we have turned the page, we also want to rezero the
@@ -167,11 +168,15 @@ class TranslationDb:
                         self._charswap_map.get(c, c) for c in coded_text
                     ])
 
-                # Break the text
-                linebroken_text = RubyUtils.linebreak_text(
-                    coded_text,
-                    Constants.CHARS_PER_LINE,
-                    start_cursor_pos=cursor_position
+                # Break the text, unless this is a QA scene in which case
+                # it's all manual
+                linebroken_text = (
+                    coded_text if scene_is_qa else
+                    RubyUtils.linebreak_text(
+                        coded_text,
+                        Constants.CHARS_PER_LINE,
+                        start_cursor_pos=cursor_position
+                    )
                 )
 
                 # Check if the broken text contains any newlines, and update
