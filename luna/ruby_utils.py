@@ -188,7 +188,11 @@ class RubyUtils:
                 broken_lines.append(acc)
                 # If we line break _right_ at 55 chars, and the next char is
                 # a _forced_ linebreak, we'd end up double-breaking.
-                acc = word if word != "\n" else ""
+                if word == "\n":
+                    acc = ""
+                    first_word = True
+                else:
+                    acc = word
                 start_cursor_pos = 0
                 continue
 
