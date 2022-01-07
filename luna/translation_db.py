@@ -453,8 +453,8 @@ class TranslationDb:
                         jp_line = strings_by_content_hash[
                             content_hash_by_offset[offset]]
                         jp_text = jp_line.jp_text
-                        is_glued = bool(text_offsets) and \
-                            bool('@n' in text_offsets[-1].modifiers)
+                        has_x_modifier = '@x' in text_modifiers
+                        is_glued = is_msad or has_x_modifier
                         has_ruby = '<' in jp_text
                         seen_offsets.add(offset)
                         text_offsets.append(cls.TextCommand(
