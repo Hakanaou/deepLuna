@@ -46,7 +46,7 @@ class RubyUtils:
 
             # If we see a space and are _not_ inside a ruby group, copy the
             # accumulator to the output list and zero it out
-            if c == ' ' or c == '\n' and not processing_ruby:
+            if (c == ' ' or c == '\n') and not processing_ruby:
                 ret.append(acc)
                 # Preserve line breaks
                 if c == '\n':
@@ -184,9 +184,15 @@ class RubyUtils:
         first_word = True
         for word in splitLine:
             # If adding the next word would overflow, break the line.
-            if len(acc + ' ' + word) + start_cursor_pos > max_linelen:
+            if cls.noruby_len(acc + ' ' + word) + start_cursor_pos > max_linelen:
                 broken_lines.append(acc)
-                acc = word
+                # If we line break _right_ at 55 chars, and the next char is
+                # a _forced_ linebreak, we'd end up double-breaking.
+                if word == "\n":
+                    acc = ""
+                    first_word = True
+                else:
+                    acc = word
                 start_cursor_pos = 0
                 continue
 
@@ -203,7 +209,9 @@ class RubyUtils:
             first_word = False
 
         # If there is a trailing accumulator, append it now.
-        if acc:
+        # If the final character in the string was a newline, the accumulator
+        # will be empty but still meaningful, so keep it.
+        if acc or splitLine[-1] == '\n':
             broken_lines.append(acc)
 
         # Join our line fragments back together with \n
