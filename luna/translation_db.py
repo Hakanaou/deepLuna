@@ -339,6 +339,120 @@ class TranslationDb:
             )
 
     @classmethod
+    def parse_script_cmds(cls, script, strings_by_content_hash,
+                          content_hash_by_offset):
+        # Split script into commands
+        raw_cmds = [
+            cmd.strip() for cmd in script.decode('utf-8').split(';')
+            if cmd.strip()
+        ]
+
+        # Regex to parse command name/args
+        command_regex = re.compile(
+            r"_(\w+)\(([\w 　a-zA-Z0-9-,`@$:.+^_]*)\)\Z")
+
+        # Parse each script command
+        script_commands = []
+        for cmd in raw_cmds:
+            # Try and match regex
+            match = command_regex.match(cmd)
+            if not match:
+                sys.stderr.write(f"Failed to parse command {cmd}\n")
+                continue
+
+            groups = match.groups()
+            script_commands.append(
+                cls.AllscrCmd(groups[0])
+                if len(groups) == 1
+                else cls.AllscrCmd(groups[0], groups[1].split(','))
+            )
+
+        # Now iterate the script commands and extract any that reference
+        # script lines
+        text_offsets = []
+        visited_offsets = set()
+        page_number = 0
+        seen_offsets = set()
+        for cmd in script_commands:
+            # If it's a PGST, take argv0 the page counter
+            if cmd.opcode == 'PGST':
+                page_number = int(cmd.arguments[0])
+                continue
+
+            # If it's not a text scripting command, ignore
+            is_zm = cmd.opcode.startswith('ZM')
+            is_msad = cmd.opcode == 'MSAD'
+            is_selr = cmd.opcode == 'SELR'
+            if not any([is_zm, is_msad, is_selr]):
+                continue
+
+            # If it has no arguments, ignore
+            if not cmd.arguments:
+                continue
+
+            # If it does have args, match all instances of text references
+            for arg in cmd.arguments:
+                text_refs = re.compile(r"(\$\d+)").findall(arg)
+                text_modifiers = re.compile(r"(\@\w)").findall(arg)
+                offsets = [int(ref[1:]) for ref in text_refs]
+                for offset in offsets:
+                    # If we already saw this offset in the file, just skip
+                    if offset in seen_offsets:
+                        continue
+
+                    # Does this offset have a forced linebreak after it?
+                    # Get the position of the offset in the full cmd line
+                    fmt_off = f"${offset:06}"
+                    offset_pos = arg.find(fmt_off)
+                    # If there is a ^ between this offset and the $ of a
+                    # subsequent offset, we have a trailing newline.
+                    next_offset_pos = arg.find("$", offset_pos + len(fmt_off))
+                    caret_pos = arg.find("^", offset_pos, next_offset_pos)
+                    has_forced_newline = caret_pos != -1
+
+                    # Work out whether this line is glued to the previous
+                    # line. A line is glued if any of:
+                    #  - It has an @x modifier on it
+                    #  - It is an MSAD command
+                    # and NONE of the following are true:
+                    #  - The previous text command contains an explicit
+                    #    linebreak (^) control code after it
+                    has_x_modifier = '@x' in text_modifiers
+                    prev_line_forces_break = (
+                        # Is there a previous line
+                        bool(text_offsets)
+                        # Is it on the same page as this
+                        and text_offsets[-1].page_number == page_number
+                        # Does it contain a forced newline at the end
+                        and text_offsets[-1].has_forced_newline
+                    )
+                    is_glued = (
+                        (is_msad or has_x_modifier)
+                        and not prev_line_forces_break
+                    )
+
+                    # Does the line contain any ruby text?
+                    jp_line = strings_by_content_hash[
+                        content_hash_by_offset[offset]]
+                    jp_text = jp_line.jp_text
+                    has_ruby = '<' in jp_text
+
+                    seen_offsets.add(offset)
+                    text_offsets.append(cls.TextCommand(
+                        offset,
+                        content_hash_by_offset[offset],
+                        page_number,
+                        has_ruby=has_ruby,
+                        is_glued=is_glued,
+                        is_choice=is_selr,
+                        modifiers=text_modifiers,
+                        has_forced_newline=has_forced_newline
+                    ))
+                    visited_offsets.add(offset)
+
+        return text_offsets
+
+    @classmethod
     def from_mrg(cls, allscr_path, script_text_path):
         script_text_mzp = Mzp(script_text_path)
 
@@ -396,84 +510,11 @@ class TranslationDb:
         visited_offsets = set()
         for scene_name, script \
                 in zip(script_names, decompressed_script_files):
-            # Split script into commands
-            raw_cmds = [
-                cmd.strip() for cmd in script.decode('utf-8').split(';')
-                if cmd.strip()
-            ]
-
-            # Regex to parse command name/args
-            command_regex = re.compile(
-                r"_(\w+)\(([\w 　a-zA-Z0-9-,`@$:.+^_]*)\)\Z")
-
-            # Parse each script command
-            script_commands = []
-            for cmd in raw_cmds:
-                # Try and match regex
-                match = command_regex.match(cmd)
-                if not match:
-                    sys.stderr.write(f"Failed to parse command {cmd}\n")
-                    continue
-
-                groups = match.groups()
-                script_commands.append(
-                    cls.AllscrCmd(groups[0])
-                    if len(groups) == 1
-                    else cls.AllscrCmd(groups[0], groups[1].split(','))
-                )
-
-            # Now iterate the script commands and extract any that reference
-            # script lines
-            text_offsets = []
-            page_number = 0
-            seen_offsets = set()
-            for cmd in script_commands:
-                # If it's a PGST, take argv0 the page counter
-                if cmd.opcode == 'PGST':
-                    page_number = int(cmd.arguments[0])
-                    continue
-
-                # If it's not a text scripting command, ignore
-                is_zm = cmd.opcode.startswith('ZM')
-                is_msad = cmd.opcode == 'MSAD'
-                is_selr = cmd.opcode == 'SELR'
-                if not any([is_zm, is_msad, is_selr]):
-                    continue
-
-                # If it has no arguments, ignore
-                if not cmd.arguments:
-                    continue
-
-                # If it does have args, match all instances of text references
-                for arg in cmd.arguments:
-                    text_refs = re.compile(r"(\$\d+)").findall(arg)
-                    text_modifiers = re.compile(r"(\@\w)").findall(arg)
-                    offsets = [int(ref[1:]) for ref in text_refs]
-                    for offset in offsets:
-                        # If we already saw this offset in the file, just skip
-                        if offset in seen_offsets:
-                            continue
-
-                        # Glue if the previous line ends in an @n
-                        jp_line = strings_by_content_hash[
-                            content_hash_by_offset[offset]]
-                        jp_text = jp_line.jp_text
-                        has_x_modifier = '@x' in text_modifiers
-                        is_glued = is_msad or has_x_modifier
-                        has_ruby = '<' in jp_text
-                        seen_offsets.add(offset)
-                        text_offsets.append(cls.TextCommand(
-                            offset,
-                            content_hash_by_offset[offset],
-                            page_number,
-                            has_ruby=has_ruby,
-                            is_glued=is_glued,
-                            is_choice=is_selr,
-                            modifiers=text_modifiers
-                        ))
-                        visited_offsets.add(offset)
-
-            scene_map[scene_name] = text_offsets
+            scene_map[scene_name] = cls.parse_script_cmds(
+                script,
+                strings_by_content_hash,
+                content_hash_by_offset
+            )
 
         # Reparent any text lines that exist but aren't referenced by the
         # allscr scripts
@@ -490,7 +531,8 @@ class TranslationDb:
 
     class TextCommand:
         def __init__(self, offset, jp_hash, page_number, has_ruby=False,
-                     is_glued=False, is_choice=False, modifiers=None):
+                     is_glued=False, is_choice=False, modifiers=None,
+                     has_forced_newline=False):
             self.offset = offset
             self.jp_hash = jp_hash
             self.page_number = page_number
@@ -498,6 +540,18 @@ class TranslationDb:
             self.is_glued = is_glued
             self.is_choice = is_choice
             self.modifiers = modifiers or []
+            self.has_forced_newline = has_forced_newline
+
+        def __eq__(self, other):
+            # Default impl doesn't work for whatever reason
+            compare_attrs = [
+                'offset', 'jp_hash', 'page_number', 'has_ruby',
+                'is_glued', 'is_choice', 'modifiers', 'has_forced_newline'
+            ]
+            for attr in compare_attrs:
+                if getattr(self, attr) != getattr(other, attr):
+                    return False
+            return True
 
         @classmethod
         def from_json(cls, jsonb):
@@ -508,7 +562,8 @@ class TranslationDb:
                 jsonb.get('has_ruby', False),
                 jsonb.get('is_glued', False),
                 jsonb.get('is_choice', False),
-                jsonb.get('modifiers')
+                jsonb.get('modifiers'),
+                jsonb.get('has_forced_newline')
             )
 
         def as_json(self):
@@ -531,12 +586,22 @@ class TranslationDb:
             if self.modifiers:
                 ret['modifiers'] = self.modifiers
 
+            if self.has_forced_newline:
+                ret['has_forced_newline'] = self.has_forced_newline
+
             return ret
 
         def __repr__(self):
             return (
-                f"TextCommand: {self.offset} {self.jp_hash} {self.has_ruby} "
-                f"{self.is_glued} {self.is_choice} {self.modifiers}"
+                f"TextCommand: "
+                f"{self.offset} "
+                f"{self.jp_hash} "
+                f"{self.page_number} "
+                f"{self.has_ruby} "
+                f"{self.is_glued} "
+                f"{self.is_choice} "
+                f"{self.modifiers} "
+                f"{self.has_forced_newline}"
             )
 
     class AllscrCmd:
