@@ -196,9 +196,13 @@ class ReadableExporter:
                 if c == '\n':
                     # If there is a valid line in the input buffer, add it to
                     # the translation text
+                    # Preserve line breaks in the source text so that we can
+                    # re-export stably, even though these line breaks will NOT
+                    # be respected by the injector
                     rstrip_acc = cmd_acc.rstrip()
                     if rstrip_acc:
-                        translated_text += rstrip_acc
+                        translated_text += \
+                            ("\n" if translated_text else "") + rstrip_acc
                     # Reset the accumulator
                     cmd_acc = ""
                     continue

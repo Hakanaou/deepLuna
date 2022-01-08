@@ -146,6 +146,11 @@ class TranslationDb:
                 # fall back to the original JP text instead.
                 tl_text = tl_line.en_text or tl_line.jp_text
 
+                # The translation text may contain linebreaks, as allowed by
+                # the import/export format. Remove these now. Linebreaks
+                # intended for display in-game must be coded for using %{n}
+                tl_text = tl_text.replace('\n', '')
+
                 # If this line is not glued to the line that came before it,
                 # reset the accumulated cursor position
                 # However, if this is a QA scene, _all_ lines count as glued
