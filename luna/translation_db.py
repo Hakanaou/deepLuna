@@ -515,6 +515,8 @@ class TranslationDb:
                 strings_by_content_hash,
                 content_hash_by_offset
             )
+            for cmd in scene_map[scene_name]:
+                visited_offsets.add(cmd.offset)
 
         # Reparent any text lines that exist but aren't referenced by the
         # allscr scripts
