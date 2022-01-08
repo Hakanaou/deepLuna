@@ -69,6 +69,7 @@ class LintAmericanSpelling:
         'towards': 'toward',
         'leaped': 'leapt',  # Exception since leaped looks dumb
         'anyways': 'anyway',
+        'licence': 'license',
     }
 
     def __call__(self, scene_name, pages):
