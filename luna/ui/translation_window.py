@@ -63,12 +63,12 @@ class TranslationWindow:
         # Hook close function to prompt save
         self._root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Init total translated percent field
-        self.load_percentage()
-
         # Scan update dir for any new files
         self.import_legacy_updates()
         self.import_updates()
+
+        # Init total translated percent field
+        self.load_percentage()
 
     def load_percentage(self):
         percent_translated = self._translation_db.translated_percent()
