@@ -1,12 +1,10 @@
 class RubyUtils:
     @staticmethod
     def unicode_aware_len(string):
-        # Certain unicode codepoints render as double-width - account for that
-        # here when calculating the length of a string
-        DOUBLEWIDE_CHARS = set([u"―"])
+        # Any non-ASCII character takes up 2 spaces instead of one.
         length = 0
         for c in string:
-            if c in DOUBLEWIDE_CHARS:
+            if ord(c) > 128:
                 length += 2
             else:
                 length += 1
