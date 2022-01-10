@@ -116,14 +116,16 @@ class RubyUtils:
         #
         # %{n}: Force newline
         # %{s}: Force space
-        # %{i}/%{/i}: Begin/end italics (Future)
-        # %{b}/%{/b}: Begin/end bold (Future)
-        # %{r}/%{/r}: Begin/end reverse (Future)
+        # %{i}/%{/i}: Begin/end italics
+        # %{r}/%{/r}: Begin/end reverse
+        # %{ri}/%{/ri}: Begin/end reverse italics
+        PUA_OFFSET = 0xE000
 
         processed_line = ""
         has_pct = False  # Did we see a % that might open a cc
         in_cc = False  # Are we inside a control code segment
         cc_acc = ""
+        glyph_offset = None
         for c in text:
             # Handle control mode entry
             if c == '%':
@@ -146,6 +148,17 @@ class RubyUtils:
                 elif cc_acc == 's':
                     # Forced space
                     processed_line += " "
+                elif cc_acc == 'i':
+                    # Offset ascii glyphs into the italic text region
+                    glyph_offset = PUA_OFFSET + 128 * 0
+                elif cc_acc == 'r':
+                    # Offset ascii glyphs into the reverso text region
+                    glyph_offset = PUA_OFFSET + 128 * 1
+                elif cc_acc == 'ri':
+                    # Offset ascii glyphs into the reversed italics text region
+                    glyph_offset = PUA_OFFSET + 128 * 2
+                elif cc_acc == '/i' or cc_acc == "/r" or cc_acc == "/ri":
+                    glyph_offset = None
                 else:
                     assert False, \
                         f"Unhandled control code '{cc_acc}' in line '{text}'"
@@ -154,7 +167,12 @@ class RubyUtils:
 
             # Non-control mode: just append character to output buffer
             if not in_cc:
-                processed_line += c
+                # If we have a glyph offset and this is an ASCII char,
+                # map it to the right font region
+                if glyph_offset and ord(c) < 128:
+                    processed_line += chr(ord(c) + glyph_offset)
+                else:
+                    processed_line += c
             else:
                 # CC mode: accumulate cc chars until cc end
                 cc_acc += c
