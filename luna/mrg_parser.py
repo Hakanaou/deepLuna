@@ -56,41 +56,45 @@ class Mzp:
     def pack(cls, sections):
         # Generate header
         header = struct.pack("<6sH", cls.MAGIC, len(sections))
+        packed_header = io.BytesIO()
+        packed_header.write(header)
 
-        # Generate section header for each section
-        section_headers = []
-        cumulative_section_size_bytes = 0
+        # Process each section
+        packed_data = io.BytesIO()
         for section in sections:
+            # Round the start of each section to a word boundary
+            while packed_data.tell() % 16 != 0:
+                packed_data.write(b"\xff")
+
+            # Calculate the header info
+            section_start_offset = packed_data.tell()
             section_sector_offset = \
-                cumulative_section_size_bytes // cls.EntryHeader.SECTOR_SIZE
+                section_start_offset // cls.EntryHeader.SECTOR_SIZE
             section_byte_offset = \
-                cumulative_section_size_bytes % cls.EntryHeader.SECTOR_SIZE
+                section_start_offset % cls.EntryHeader.SECTOR_SIZE
             size_sectors = len(section) // cls.EntryHeader.SECTOR_SIZE
             size_bytes = len(section) & 0xFFFF
             if len(section) % cls.EntryHeader.SECTOR_SIZE:
                 size_sectors += 1
-            section_header = struct.pack(
+            packed_header.write(struct.pack(
                 cls.EntryHeader.HEADER_FORMAT,
                 section_sector_offset,
                 section_byte_offset,
                 size_sectors,
                 size_bytes
-            )
-            section_headers.append(section_header)
+            ))
 
-            # Increment offset counter.
-            # Include 8 bytes of 0xFF after each section.
-            cumulative_section_size_bytes += len(section) + 8
+            # Append the section data to the data buffer
+            packed_data.write(section)
 
-        # Consolidate headers + data
-        packed = io.BytesIO()
-        packed.write(header)
-        for section_header in section_headers:
-            packed.write(section_header)
-        for section in sections:
-            packed.write(section)
-            packed.write(b"\xff\xff\xff\xff\xff\xff\xff\xff")
+        # Consolidate data onto header buffer
+        packed_data.seek(0, io.SEEK_SET)
+        packed_header.write(packed_data.read())
+
+        # Pad total file size to boundary
+        while packed_header.tell() % 8 != 0:
+            packed_header.write(b"\xff")
 
         # Return accumulated data
-        packed.seek(0, io.SEEK_SET)
-        return packed.read()
+        packed_header.seek(0, io.SEEK_SET)
+        return packed_header.read()

@@ -142,9 +142,14 @@ class TranslationDb:
                 # Pull the translated text for this line
                 tl_line = self._line_by_hash[command.jp_hash]
 
-                # Get the english text. If the line is not actually translated,
-                # fall back to the original JP text instead.
-                tl_text = tl_line.en_text or tl_line.jp_text
+                # If the line is not actually translated, fall back to the
+                # original JP text instead.
+                if not tl_line.en_text:
+                    offset_to_string[command.offset] = tl_line.jp_text
+                    continue
+
+                # Get the english text.
+                tl_text = tl_line.en_text
 
                 # The translation text may contain linebreaks, as allowed by
                 # the import/export format. Remove these now. Linebreaks
@@ -210,13 +215,24 @@ class TranslationDb:
         max_offset = max(offset_to_string.keys())
         offset_table = io.BytesIO()
         string_table = io.BytesIO()
-        for offset in range(max_offset+1):
+        for offset in range(max_offset + 1):
+            # There are a handful of null strings that mark EOF
+            # Just write FFs to the offset table, no string data for these
+            if not offset_to_string.get(offset, ''):
+                continue
+
             # Write the offset of this string to the offset table
             offset_table.write(struct.pack(">I", string_table.tell()))
 
             # Write the string data to the string table
             string_table.write(
                 offset_to_string.get(offset, '').encode('utf-8'))
+
+        # Finalize the offset table by writing the final offset twice,
+        # followed by 12 bytes of 0xFF
+        offset_table.write(struct.pack(">I", string_table.tell()))
+        offset_table.write(struct.pack(">I", string_table.tell()))
+        offset_table.write(struct.pack(">I", 0xFFFFFFFF))
 
         offset_table.seek(0, io.SEEK_SET)
         string_table.seek(0, io.SEEK_SET)
@@ -232,10 +248,36 @@ class TranslationDb:
             newline_offset_table.write(
                 struct.pack(">I", newline_string_table.tell()))
             newline_string_table.write(b"  \r\n")
+
+        # Finalize
+        newline_string_table_end = newline_string_table.tell()
+        newline_offset_table.write(struct.pack(">I", newline_string_table_end))
+        newline_offset_table.write(struct.pack(">I", newline_string_table_end))
+        newline_offset_table.write(struct.pack(">I", 0xFFFFFFFF))
+
         newline_offset_table.seek(0, io.SEEK_SET)
         newline_string_table.seek(0, io.SEEK_SET)
         newline_offset_table_str = newline_offset_table.read()
         newline_string_table_str = newline_string_table.read()
+
+        # Space tables
+        space_offset_table = io.BytesIO()
+        space_string_table = io.BytesIO()
+        for i in range(max_offset + 1):
+            space_offset_table.write(
+                struct.pack(">I", space_string_table.tell()))
+            space_string_table.write("\u3000\r\n".encode('utf-8'))
+
+        # Finalize
+        space_string_table_end = space_string_table.tell()
+        space_offset_table.write(struct.pack(">I", space_string_table_end))
+        space_offset_table.write(struct.pack(">I", space_string_table_end))
+        space_offset_table.write(struct.pack(">I", 0xFFFFFFFF))
+
+        space_offset_table.seek(0, io.SEEK_SET)
+        space_string_table.seek(0, io.SEEK_SET)
+        space_offset_table_str = space_offset_table.read()
+        space_string_table_str = space_string_table.read()
 
         # Pack the MZP
         return Mzp.pack([
@@ -243,9 +285,9 @@ class TranslationDb:
             offset_table_str, string_table_str,
             # 4 copies of newlines
             newline_offset_table_str, newline_string_table_str,
-            newline_offset_table_str, newline_string_table_str,
-            newline_offset_table_str, newline_string_table_str,
-            newline_offset_table_str, newline_string_table_str,
+            space_offset_table_str, space_string_table_str,
+            space_offset_table_str, space_string_table_str,
+            space_offset_table_str, space_string_table_str,
         ])
 
     @classmethod
@@ -472,12 +514,15 @@ class TranslationDb:
         strings_by_offset = {}
         for i in range(offset_count):
             (data_start,) = struct.unpack('>I', string_offsets_raw[i*4:i*4+4])
-            if i < offset_count - 1:
-                (data_end,) = struct.unpack(
-                    '>I', string_offsets_raw[(i+1)*4:(i+1)*4+4])
-                data = string_table_raw[data_start:data_end]
-            else:
-                data = string_table_raw[data_start:]
+            (data_end,) = struct.unpack(
+                '>I', string_offsets_raw[(i+1)*4:(i+1)*4+4])
+
+            # Zero-len string marks end of offset table
+            if data_start == data_end:
+                break
+
+            # If it's non-zero, extract the associated string data
+            data = string_table_raw[data_start:data_end]
             strings_by_offset[i] = data.decode('utf-8')
 
         # Hash those strings to build initial content table and
