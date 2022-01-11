@@ -117,6 +117,44 @@ class LintUnclosedQuotes:
         return errors
 
 
+class LintTranslationHoles:
+    """
+    If a file is _mostly_ translated but has some untranslated strings in it
+    it's possible they got skipped by accident.
+    """
+
+    LIKELY_TRANSLATED_THRESH = 0.8
+
+    def __call__(self, scene_name, pages):
+        # What % of lines in this scene are TL'd?
+        total_tl_count = 0
+        total_line_count = 0
+        for page in pages:
+            for line, comment in page:
+                total_line_count += 1
+                if line:
+                    total_tl_count += 1
+
+        # If this file doesn't look translated, or is 100% tl'd, just return
+        translation_ratio = total_tl_count / total_line_count
+        mostly_translated = translation_ratio > self.LIKELY_TRANSLATED_THRESH
+        fully_translated = total_tl_count == total_line_count
+        if not mostly_translated or fully_translated:
+            return []
+
+        # If this file is mostly translated but has holes, warn about it
+        return [
+            LintResult(
+                self.__class__.__name__,
+                scene_name,
+                None,
+                f'Scene {scene_name} has translation holes',
+                f'Scene is {translation_ratio*100:.1f}% translated, but has '
+                f'{total_line_count - total_tl_count} missing lines',
+            )
+        ]
+
+
 class LintDanglingCommas:
     def __call__(self, scene_name, pages):
         # QA has a lot of false positives for this, so maybe ignore for now
@@ -234,6 +272,7 @@ def process_scene(tl_db, scene):
         LintDanglingCommas(),
         LintVerbotenUnicode(),
         LintUnspacedRuby(),
+        LintTranslationHoles(),
     ]
 
     lint_results = []
