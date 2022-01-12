@@ -190,10 +190,10 @@ def perform_import(tl_db, args):
                     Color(Color.CYAN)(f"{msg}")
                 )
 
-        # If we had conflicts and are in strict mode, bail
-        if args.strict_import:
-            print("Conflicts found, aborting")
-            raise SystemExit(-1)
+    # If we had conflicts and are in strict mode, bail
+    if import_diff.any_conflicts() and args.strict_import:
+        print("Conflicts found, aborting")
+        raise SystemExit(-1)
 
     # Write back changes to disk
     tl_db.to_file(args.db_path)
