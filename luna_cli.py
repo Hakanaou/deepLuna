@@ -58,6 +58,12 @@ def parse_args():
         help="Import legacy-style update files from the specified path"
     )
     parser.add_argument(
+        '--interactive-import',
+        dest='interactive_import',
+        action='store_true',
+        help='Prompt to resolve import conflicts'
+    )
+    parser.add_argument(
         '--strict-import',
         dest='strict_import',
         action='store_true',
@@ -93,6 +99,52 @@ def parse_args():
     return parser.parse_args(sys.argv[1:])
 
 
+def import_mergetool(tl_db, import_diff):
+    for sha, entry_group in import_diff.entries_by_sha.items():
+        # Ignore the non-conflicting entries
+        if entry_group.is_unique():
+            continue
+
+        # Generate candidate list
+        line = tl_db.tl_line_with_hash(sha)
+        msg = "Imported candidates:\n"
+        idx = 0
+        for entry in entry_group.entries:
+            msg += (
+                f"{idx}. {os.path.basename(entry.filename)}:L{entry.line}: "
+                f"{entry.en_text} "
+                f"// {entry.comment.rstrip()}\n"
+                if entry.comment else
+                f"{idx}. {os.path.basename(entry.filename)}:L{entry.line}: "
+                f"'{entry.en_text}'\n"
+            )
+            idx += 1
+
+        print(
+            Color(Color.RED)(f"Import conflict for line {sha}:\n") +
+            Color(Color.YELLOW)(f"JP: {line.jp_text.rstrip()}\n") +
+            Color(Color.CYAN)(f"{msg}")
+        )
+        while True:
+            sys.stdout.write(f"TL to keep [0, {idx-1}]: ")
+            user_choice = input()
+            try:
+                choice_int = int(user_choice)
+            except ValueError:
+                print(f"Invalid selection '{user_choice}'")
+                continue
+            if choice_int >= 0 and choice_int < idx:
+                # Commit the relevant line back to the DB
+                selected_tl = entry_group.entries[choice_int]
+                tl_db.set_translation_and_comment_for_hash(
+                    sha, selected_tl.en_text, selected_tl.comment)
+                print(Color(Color.GREEN)(
+                    f"Picked #{choice_int}: {selected_tl.en_text}\n"))
+                break
+            else:
+                print(f"Invalid selection '{user_choice}'")
+
+
 def perform_import(tl_db, args):
     candidate_files = []
     for basedir, dirs, files in os.walk(args.import_path):
@@ -109,29 +161,34 @@ def perform_import(tl_db, args):
     # Apply non-conflict data immediately
     tl_db.apply_diff(import_diff)
 
-    # If there are conflicts, print them
-    if import_diff.any_conflicts():
-        for sha, entry_group in import_diff.entries_by_sha.items():
-            # Ignore the non-conflicting entries
-            if entry_group.is_unique():
-                continue
+    # If there are conflicts, and we're in interactive mode,
+    # try and resolve them
+    if args.interactive_import:
+        import_mergetool(tl_db, import_diff)
+    else:
+        # If we aren't going to resolve, just print
+        if import_diff.any_conflicts():
+            for sha, entry_group in import_diff.entries_by_sha.items():
+                # Ignore the non-conflicting entries
+                if entry_group.is_unique():
+                    continue
 
-            line = tl_db.tl_line_with_hash(sha)
-            msg = "Imported candidates:\n"
-            for entry in entry_group.entries:
-                msg += (
-                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
-                    f"{entry.en_text} "
-                    f"// {entry.comment.rstrip()}\n"
-                    if entry.comment else
-                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
-                    f"{entry.en_text}\n"
+                line = tl_db.tl_line_with_hash(sha)
+                msg = "Imported candidates:\n"
+                for entry in entry_group.entries:
+                    msg += (
+                        f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                        f"{entry.en_text} "
+                        f"// {entry.comment.rstrip()}\n"
+                        if entry.comment else
+                        f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                        f"{entry.en_text}\n"
+                    )
+                print(
+                    Color(Color.RED)(f"Import conflict for line {sha}:\n") +
+                    Color(Color.YELLOW)(f"JP: {line.jp_text.rstrip()}\n") +
+                    Color(Color.CYAN)(f"{msg}")
                 )
-            print(
-                Color(Color.RED)(f"Import conflict for line {sha}:\n") +
-                Color(Color.YELLOW)(f"JP line: {line.jp_text.rstrip()}\n") +
-                Color(Color.CYAN)(f"{msg}")
-            )
 
         # If we had conflicts and are in strict mode, bail
         if args.strict_import:
