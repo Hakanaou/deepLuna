@@ -26,11 +26,18 @@ class TranslationDb:
         - Content-addressed strings:
             Each JP text line, indexed by hash, associated with a translation
             and any additional comments or context left by translators
+        - Offset override strings:
+            It is not always the case that we want to use the same EN
+            translation for all instances of a JP string, notably for
+            exclamations or other short phrases.
+            For these cases, allow storing overrides for a line.
     """
 
-    def __init__(self, scene_map, line_by_hash, charswap_map=None):
+    def __init__(self, scene_map, line_by_hash, overrides_by_offset,
+                 charswap_map=None):
         self._scene_map = scene_map
         self._line_by_hash = line_by_hash
+        self._overrides_by_offset = overrides_by_offset
         self._charswap_map = charswap_map or {}
 
     def scene_names(self, include_empty=False):
@@ -46,9 +53,32 @@ class TranslationDb:
     def tl_line_with_hash(self, jp_hash):
         return self._line_by_hash[jp_hash]
 
+    def tl_override_for_offset(self, offset):
+        assert isinstance(offset, int)
+        return self._overrides_by_offset.get(offset)
+
     def set_translation_and_comment_for_hash(self, jp_hash, en_text, comment):
         self._line_by_hash[jp_hash].en_text = en_text
         self._line_by_hash[jp_hash].comment = comment
+
+    def tl_line_for_offset(self, offset):
+        # Not a hot path, so just iterate the scene map
+        for scene in self._scene_map.values():
+            for line in scene:
+                if line.offset == offset:
+                    return line.jp_hash
+
+        return None
+
+    def override_translation_and_comment_for_offset(
+            self, offset, en_text, comment):
+        assert isinstance(offset, int)
+        if offset not in self._overrides_by_offset:
+            # Default the override data to the proper hash line at this offset
+            jp_hash = self.tl_line_for_offset(offset)
+            self._overrides_by_offset[offset] = self._line_by_hash[jp_hash]
+        self._overrides_by_offset[offset].en_text = en_text
+        self._overrides_by_offset[offset].comment = comment
 
     def translated_percent(self):
         total_lines = 0
@@ -75,6 +105,9 @@ class TranslationDb:
             'line_by_hash': {
                 k: v.as_json() for k, v in self._line_by_hash.items()
             },
+            'override_by_offset': {
+                k: v.as_json() for k, v in self._overrides_by_offset.items()
+            },
             'charswap_map': self._charswap_map
         }, sort_keys=True, indent=2)
 
@@ -88,9 +121,13 @@ class TranslationDb:
             k: cls.TLLine.from_json(v)
             for k, v in jsonb['line_by_hash'].items()
         }
+        overrides_by_offset = {
+            int(k): cls.TLLine.from_json(v)
+            for k, v in jsonb.get('override_by_offset', {}).items()
+        }
         charswap_map = jsonb.get('charswap_map')
 
-        return cls(scene_map, line_by_hash, charswap_map)
+        return cls(scene_map, line_by_hash, overrides_by_offset, charswap_map)
 
     def export_scene(self, scene_name, output_basedir):
         if scene_name not in self.scene_names():
@@ -139,8 +176,14 @@ class TranslationDb:
             prev_page_number = None
             scene_is_qa = scene_name.startswith('QA')
             for command in scene_commands:
-                # Pull the translated text for this line
+                # Pull the translated text for this line from the SHA-addressed
+                # translation table
                 tl_line = self._line_by_hash[command.jp_hash]
+
+                # If there is an explicit override for this line, pull that
+                # instead
+                if command.offset in self._overrides_by_offset:
+                    tl_line = self._overrides_by_offset[command.offset]
 
                 # If the line is not actually translated, fall back to the
                 # original JP text instead.
@@ -316,6 +359,18 @@ class TranslationDb:
             # Just directly apply non-conflicting diff items
             self.set_translation_and_comment_for_hash(
                 sha,
+                entry_group.entries[0].en_text,
+                entry_group.entries[0].comment,
+            )
+
+        for offset, entry_group in diff.entries_by_offset.items():
+            # If there's duplicate offset entries somehow, they gotta fix that
+            if not entry_group.is_unique():
+                continue
+
+            # Commit the override
+            self.override_translation_and_comment_for_offset(
+                offset,
                 entry_group.entries[0].en_text,
                 entry_group.entries[0].comment,
             )
@@ -579,7 +634,7 @@ class TranslationDb:
 
         scene_map['ORPHANED_LINES'] = orphan_lines
 
-        return cls(scene_map, strings_by_content_hash)
+        return cls(scene_map, strings_by_content_hash, {})
 
     class TextCommand:
         def __init__(self, offset, jp_hash, page_number, has_ruby=False,
@@ -690,6 +745,9 @@ class TranslationDb:
             self.jp_text = jp_text
             self.en_text = en_text
             self.comment = comment
+
+        def __repr__(self):
+            return f"TLLine({self.jp_text} {self.en_text} {self.comment})"
 
         def content_hash(self):
             return hashlib.sha1(self.jp_text.encode('utf-8')).hexdigest()

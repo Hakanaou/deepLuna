@@ -31,16 +31,20 @@ class ReadableExporter:
 
     class LexState:
         EXPECT_BLOCK = 0
-        PARSE_CONTENT_HASH = 1
-        EXPECT_OPEN_BLOCK = 2
-        DEFAULT_BLOCK = 3
-        PARSE_MACHINE_COMMENT = 4
-        PARSE_HUMAN_COMMENT = 5
+        PARSE_BLOCK_PREFIX = 1
+        PARSE_BLOCK_ID = 2
+        EXPECT_OPEN_BLOCK = 3
+        DEFAULT_BLOCK = 4
+        PARSE_MACHINE_COMMENT = 5
+        PARSE_HUMAN_COMMENT = 6
 
     class Diff:
         class EntryGroup:
             def __init__(self):
                 self.entries = []
+
+            def __repr__(self):
+                return f"EntryGroup({self.entries})"
 
             def add_entry(self, entry):
                 self.entries.append(entry)
@@ -50,9 +54,11 @@ class ReadableExporter:
                     return True
 
                 # If any entries don't match, non-unique
+                expect_en = self.entries[0].en_text
+                expect_comment = self.entries[0].comment
                 for i in range(1, len(self.entries)):
-                    if self.entries[i].en_text != self.entries[0].en_text or \
-                       self.entries[i].comment != self.entries[0].comment:
+                    if self.entries[i].en_text != expect_en or \
+                       self.entries[i].comment != expect_comment:
                         return False
 
                 return True
@@ -74,11 +80,14 @@ class ReadableExporter:
         def __init__(self):
             # Map of sha to list of entry
             self.entries_by_sha = {}
+            self.entries_by_offset = {}
 
         def __repr__(self):
             ret = "Diff("
             for sha, entries in self.entries_by_sha.items():
-                ret += f"{sha}: {entries}, "
+                ret += f"sha:{sha}: {entries}, "
+            for offset, entries in self.entries_by_offset.items():
+                ret += f"offset:{offset}: {entries}, "
             return ret
 
         def any_conflicts(self):
@@ -88,11 +97,22 @@ class ReadableExporter:
 
             return False
 
-        def add_entry(self, sha, filename, line, en_text, comment):
+        def add_sha_entry(self, sha, filename, line, en_text, comment):
             if sha not in self.entries_by_sha:
                 self.entries_by_sha[sha] = self.EntryGroup()
 
             self.entries_by_sha[sha].add_entry(self.Entry(
+                filename,
+                line,
+                en_text,
+                comment
+            ))
+
+        def add_offset_entry(self, offset, filename, line, en_text, comment):
+            if offset not in self.entries_by_offset:
+                self.entries_by_offset[offset] = self.EntryGroup()
+
+            self.entries_by_offset[offset].add_entry(self.Entry(
                 filename,
                 line,
                 en_text,
@@ -105,6 +125,11 @@ class ReadableExporter:
                     self.entries_by_sha[sha] = self.EntryGroup()
                 for entry in other.entries_by_sha[sha].entries:
                     self.entries_by_sha[sha].add_entry(entry)
+            for offset in other.entries_by_offset:
+                if offset not in self.entries_by_offset:
+                    self.entries_by_offset[offset] = self.EntryGroup()
+                for entry in other.entries_by_offset[offset].entries:
+                    self.entries_by_offset[offset].add_entry(entry)
 
     @classmethod
     def import_text(cls, filename):
@@ -117,6 +142,7 @@ class ReadableExporter:
         state = cls.LexState.EXPECT_BLOCK
         cmd_acc = ""
         active_content_hash = None
+        active_block_is_offset_override = False
         line_counter = 0
         brace_count = 0
         translated_text = ""
@@ -134,7 +160,7 @@ class ReadableExporter:
 
                 # If we get an open content hash spec '[', transition states
                 if c == '[':
-                    state = cls.LexState.PARSE_CONTENT_HASH
+                    state = cls.LexState.PARSE_BLOCK_PREFIX
                     cmd_acc = ""
                     continue
 
@@ -143,8 +169,32 @@ class ReadableExporter:
                     f"line {line_counter} while in state EXPECT_BLOCK"
                 )
 
+            # Accumulate the sha: or offset: prefix on the block
+            if state == cls.LexState.PARSE_BLOCK_PREFIX:
+                # Ignore whitespace
+                if c in "\r\n ":
+                    continue
+
+                # Delimiter?
+                if c == ':':
+                    if cmd_acc == "sha":
+                        active_block_is_offset_override = False
+                    elif cmd_acc == "offset":
+                        active_block_is_offset_override = True
+                    else:
+                        raise cls.ParseError(
+                            f"Invalid block prefix tag '{cmd_acc}'"
+                        )
+
+                    state = cls.LexState.PARSE_BLOCK_ID
+                    cmd_acc = ""
+                    continue
+
+                # Accumulate the character onto the cmd_acc buffer
+                cmd_acc += c
+
             # Are we processing the content-hash specifier for a block?
-            if state == cls.LexState.PARSE_CONTENT_HASH:
+            if state == cls.LexState.PARSE_BLOCK_ID:
                 # Ignore whitespace
                 if c in "\r\n ":
                     continue
@@ -158,12 +208,20 @@ class ReadableExporter:
                     cmd_acc = ""
                     continue
 
-                # All content hashes must be valid lowercase hex
-                if c not in '0123456789abcdef':
-                    raise cls.ParseError(
-                        f"Invalid character '{c}' in "
-                        f"content hash on line {line_counter}"
-                    )
+                if active_block_is_offset_override:
+                    # Offsets must be pure numeric
+                    if c not in '0123456789':
+                        raise cls.ParseError(
+                            f"Invalid character '{c}' in "
+                            f"offset on line {line_counter}"
+                        )
+                if active_block_is_offset_override:
+                    # All content hashes must be valid lowercase hex
+                    if c not in '0123456789abcdef':
+                        raise cls.ParseError(
+                            f"Invalid character '{c}' in "
+                            f"content hash on line {line_counter}"
+                        )
 
                 # Accumulate the character onto the cmd_acc buffer
                 cmd_acc += c
@@ -226,13 +284,22 @@ class ReadableExporter:
                         # Create a new entry in our return map
                         # If there is no valid tl or comments, use None instead
                         # of empty string as an indicator
-                        ret.add_entry(
-                            active_content_hash,
-                            filename,
-                            line_counter,
-                            translated_text or None,
-                            human_comments or None
-                        )
+                        if active_block_is_offset_override:
+                            ret.add_offset_entry(
+                                int(active_content_hash),
+                                filename,
+                                line_counter,
+                                translated_text or None,
+                                human_comments or None
+                            )
+                        else:
+                            ret.add_sha_entry(
+                                active_content_hash,
+                                filename,
+                                line_counter,
+                                translated_text or None,
+                                human_comments or None
+                            )
                         translated_text = ""
                         human_comments = ""
 
@@ -301,12 +368,18 @@ class ReadableExporter:
         # Start accumulating context blocks
         for line in scene_lines:
             # Get the associated TL line
-            tl_info = translation_db.tl_line_with_hash(line.jp_hash)
+            # If there's an override, prefer that, and emit an offset: prefix
+            # instead of a sha: prefix
+            tl_info = translation_db.tl_override_for_offset(line.offset)
+            tl_is_override = tl_info is not None
+            if not tl_is_override:
+                tl_info = translation_db.tl_line_with_hash(line.jp_hash)
 
             # Automated context comments
             glued = " Glued." if line.is_glued else ""
             choice = " Choice." if line.is_choice else ""
-            mods = " Mods: %s." % ', '.join(line.modifiers) if line.modifiers else ""
+            mods = " Mods: %s." % ', '.join(line.modifiers) \
+                if line.modifiers else ""
             generated_comment = (
                 f"-- Page {line.page_number}, Offset {line.offset}."
                 f"{glued}{choice}{mods}\n"
@@ -327,13 +400,16 @@ class ReadableExporter:
                 else '-- TRANSLATION HERE'
             )
 
+            # Append
+            identifier = f"[sha:{line.jp_hash}]" if not tl_is_override \
+                else f"[offset:{line.offset}]"
             ret += (
-                f"[{line.jp_hash}]"
-                 "{\n"
+                identifier +
+                "{\n"
                 f"{generated_comment}\n"
                 f"{human_comment}"
                 f"{tl_text}\n"
-                 "}\n"
+                "}\n"
             )
 
         return ret
