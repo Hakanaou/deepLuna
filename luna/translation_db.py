@@ -1,4 +1,5 @@
 import io
+import copy
 import hashlib
 import json
 import multiprocessing
@@ -76,7 +77,12 @@ class TranslationDb:
         if offset not in self._overrides_by_offset:
             # Default the override data to the proper hash line at this offset
             jp_hash = self.tl_line_for_offset(offset)
-            self._overrides_by_offset[offset] = self._line_by_hash[jp_hash]
+            if jp_hash not in self._line_by_hash:
+                print(f"Unknown hash {jp_hash}")
+                return
+            base = copy.deepcopy(self._line_by_hash[jp_hash])
+            self._overrides_by_offset[offset] = base
+
         self._overrides_by_offset[offset].en_text = en_text
         self._overrides_by_offset[offset].comment = comment
 
