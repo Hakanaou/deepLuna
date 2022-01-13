@@ -257,9 +257,10 @@ def process_scene(tl_db, scene):
             page_acc = []
             current_page = cmd.page_number
 
+        line = tl_db.tl_line_for_cmd(cmd)
         page_acc.append((
-            tl_db.tl_line_with_hash(cmd.jp_hash).en_text,
-            tl_db.tl_line_with_hash(cmd.jp_hash).comment,
+            line.en_text,
+            line.comment,
         ))
 
     if page_acc:

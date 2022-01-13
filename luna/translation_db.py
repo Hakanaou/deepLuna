@@ -62,6 +62,10 @@ class TranslationDb:
         self._line_by_hash[jp_hash].en_text = en_text
         self._line_by_hash[jp_hash].comment = comment
 
+    def tl_line_for_cmd(self, cmd):
+        return self.tl_override_for_offset(cmd.offset) or \
+            self.tl_line_with_hash(cmd.jp_hash)
+
     def tl_line_for_offset(self, offset):
         # Not a hot path, so just iterate the scene map
         for scene in self._scene_map.values():
