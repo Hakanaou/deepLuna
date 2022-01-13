@@ -266,9 +266,6 @@ def main():
     else:
         tl_db = TranslationDb.from_file(args.db_path)
 
-    # Try and load the TL DB
-    tl_db = TranslationDb.from_file(args.db_path)
-
     # Import anything?
     if args.import_path:
         perform_import(tl_db, args)
