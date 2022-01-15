@@ -102,6 +102,13 @@ def parse_args():
         help="Output path for the exported script text"
     )
 
+    parser.add_argument(
+        '--no-save',
+        dest='no_save',
+        action='store_true',
+        help="Do not save the luna database after processing"
+    )
+
     return parser.parse_args(sys.argv[1:])
 
 
@@ -201,9 +208,6 @@ def perform_import(tl_db, args):
         print("Conflicts found, aborting")
         raise SystemExit(-1)
 
-    # Write back changes to disk
-    tl_db.to_file(args.db_path)
-
     # Clean up afterwards?
     if args.delete:
         # Clear out the input files
@@ -268,7 +272,6 @@ def main():
     tl_db = None
     if args.do_extract:
         tl_db = TranslationDb.from_mrg("allscr.mrg", "script_text.mrg")
-        tl_db.to_file(args.db_path)
     else:
         tl_db = TranslationDb.from_file(args.db_path)
 
@@ -288,6 +291,9 @@ def main():
 
     if args.export_path:
         perform_export(tl_db, args)
+
+    if not args.no_save:
+        tl_db.to_file(args.db_path)
 
 
 if __name__ == '__main__':
