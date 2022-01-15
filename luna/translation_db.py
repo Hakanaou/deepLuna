@@ -90,6 +90,9 @@ class TranslationDb:
         self._overrides_by_offset[offset].en_text = en_text
         self._overrides_by_offset[offset].comment = comment
 
+    def clear_offset_overrides(self):
+        self._overrides_by_offset = {}
+
     def translated_percent(self):
         total_lines = 0
         translated_lines = 0

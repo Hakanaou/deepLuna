@@ -58,6 +58,12 @@ def parse_args():
         help="Import legacy-style update files from the specified path"
     )
     parser.add_argument(
+        '--reset-overrides',
+        dest='reset_overrides',
+        action='store_true',
+        help='Clear offset override table before import'
+    )
+    parser.add_argument(
         '--interactive-import',
         dest='interactive_import',
         action='store_true',
@@ -265,6 +271,10 @@ def main():
         tl_db.to_file(args.db_path)
     else:
         tl_db = TranslationDb.from_file(args.db_path)
+
+    # Cl offset override table?
+    if args.reset_overrides:
+        tl_db.clear_offset_overrides()
 
     # Import anything?
     if args.import_path:
