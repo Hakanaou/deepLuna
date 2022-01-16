@@ -33,6 +33,10 @@ class TranslationWindow:
         self._conflict_dialog = None
         self._charswap_map_editor = None
 
+        # Currently loaded scene / string
+        self._loaded_scene = None
+        self._loaded_offset = None
+
         # Try and load the translation DB from file
         self._translation_db = TranslationDb.from_file(
             Constants.DATABASE_PATH)
@@ -68,13 +72,35 @@ class TranslationWindow:
         self.import_updates()
 
         # Init total translated percent field
-        self.load_percentage()
+        self.update_global_tl_percent()
 
-    def load_percentage(self):
+    def update_global_tl_percent(self):
         percent_translated = self._translation_db.translated_percent()
         self.percent_translated_global.delete("1.0", tk.END)
         self.percent_translated_global.insert(
             "1.0", "%.1f%%" % percent_translated)
+
+    def update_selected_scene_tl_percent(self):
+        # If there's no scene loaded, do nothing
+        if not self._loaded_scene:
+            return
+
+        # How many lines are actually TLd
+        scene_lines = self._translation_db.lines_for_scene(self._loaded_scene)
+        idx = 0
+        translated_count = 0
+        for line in scene_lines:
+            tl_info = self._translation_db.tl_line_with_hash(line.jp_hash)
+            if tl_info.en_text:
+                translated_count += 1
+            idx += 1
+
+        # Update UI
+        self.percent_translated_day.delete("1.0", tk.END)
+        self.percent_translated_day.insert(
+            "1.0",
+            str(round(translated_count*100/max(idx, 1), 1))+"%")
+        self._name_day.set(self._loaded_scene + ": ")
 
     def on_close(self):
         # Prompt to save the DB
@@ -337,20 +363,17 @@ class TranslationWindow:
             self._charswap_map_editor = None
 
     def save_line(self):
-        # Get the selected line indexes
-        # (multiple selection possible, but ignored)
-        selected_indexes = self.listbox_offsets.curselection()
-        if not selected_indexes:
+        # Is a valid string loaded
+        if not self._loaded_offset:
             return
 
         # Check the active scene is valid
-        selected_scene = self.scene_tree.focus()
-        if selected_scene not in self._translation_db.scene_names():
+        if self._loaded_scene not in self._translation_db.scene_names():
             return
 
         # Get the line info for the selected offset
-        scene_lines = self._translation_db.lines_for_scene(selected_scene)
-        selected_line = scene_lines[selected_indexes[0]]
+        scene_lines = self._translation_db.lines_for_scene(self._loaded_scene)
+        selected_line = scene_lines[self._loaded_offset]
 
         # Extract the new tl/comment
         new_tl = self.text_translated.get("1.0", tk.END).strip("\n")
@@ -362,6 +385,13 @@ class TranslationWindow:
             new_tl,
             new_comment
         )
+
+        # Mark the line as green
+        self.listbox_offsets.itemconfig(self._loaded_offset, bg='#BCECC8')
+
+        # Update TL $
+        self.update_global_tl_percent()
+        self.update_selected_scene_tl_percent()
 
     def save_translation_table(self):
         # Write out the translation DB to file
@@ -804,13 +834,12 @@ class TranslationWindow:
                 translated_count += 1
             idx += 1
 
+        # Cache the selected scene
+        self._loaded_scene = scene
+
         # Update current day translated percent
-        print(f"translated count: {translated_count} idx: {idx}")
-        self.percent_translated_day.delete("1.0", tk.END)
-        self.percent_translated_day.insert(
-            "1.0",
-            str(round(translated_count*100/max(idx, 1), 1))+"%")
-        self._name_day.set(scene + ": ")
+        self.update_global_tl_percent()
+        self.update_selected_scene_tl_percent()
 
     def load_translation_line(self, _event):
         # Get the selected line indexes
@@ -820,13 +849,15 @@ class TranslationWindow:
             return
 
         # Check the active scene is valid
-        selected_scene = self.scene_tree.focus()
-        if selected_scene not in self._translation_db.scene_names():
+        if self._loaded_scene not in self._translation_db.scene_names():
             return
 
+        # Cache the offset
+        self._loaded_offset = selected_indexes[0]
+
         # Load the relevant line info from the scene
-        scene_lines = self._translation_db.lines_for_scene(selected_scene)
-        selected_line = scene_lines[selected_indexes[0]]
+        scene_lines = self._translation_db.lines_for_scene(self._loaded_scene)
+        selected_line = scene_lines[self._loaded_offset]
 
         # Get the translation data for this JP hash
         tl_info = self._translation_db.tl_line_with_hash(selected_line.jp_hash)
