@@ -364,7 +364,7 @@ class TranslationWindow:
 
     def save_line(self):
         # Is a valid string loaded
-        if not self._loaded_offset:
+        if self._loaded_offset is None:
             return
 
         # Check the active scene is valid
