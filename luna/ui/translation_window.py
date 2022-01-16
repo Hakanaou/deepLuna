@@ -436,12 +436,59 @@ class TranslationWindow:
 
     def export_page(self):
         self._translation_db.export_scene(
-            self.scene_tree.focus(), Constants.EXPORT_DIRECTORY)
+            self._loaded_scene, Constants.EXPORT_DIRECTORY)
+
+        # Dialog
+        self._warning = tk.Toplevel(self._root)
+        self._warning.title("Export Complete")
+        self._warning.resizable(height=False, width=False)
+        self._warning.attributes("-topmost", True)
+        self._warning.grab_set()
+
+        # Set message
+        warning_message = tk.Label(
+            self._warning,
+            text=f"Exported scene f{self._loaded_scene} "
+                 f"to {Constants.EXPORT_DIRECTORY}",
+            justify=tk.LEFT
+        )
+        warning_message.grid(row=0, column=0, padx=5, pady=5)
+
+        # Button choices
+        warning_button = tk.Button(
+            self._warning,
+            text="OK",
+            command=self.close_warning
+        )
+        warning_button.grid(row=1, column=0, pady=10)
 
     def export_all_pages(self):
         for scene in self._translation_db.scene_names():
             self._translation_db.export_scene(
                 scene, Constants.EXPORT_DIRECTORY)
+
+        # Dialog
+        self._warning = tk.Toplevel(self._root)
+        self._warning.title("Export Complete")
+        self._warning.resizable(height=False, width=False)
+        self._warning.attributes("-topmost", True)
+        self._warning.grab_set()
+
+        # Set message
+        warning_message = tk.Label(
+            self._warning,
+            text=f"Exported all scenes to {Constants.EXPORT_DIRECTORY}",
+            justify=tk.LEFT
+        )
+        warning_message.grid(row=0, column=0, padx=5, pady=5)
+
+        # Button choices
+        warning_button = tk.Button(
+            self._warning,
+            text="OK",
+            command=self.close_warning
+        )
+        warning_button.grid(row=1, column=0, pady=10)
 
     def import_updates(self):
         # Any goodies for us in the update folder?
