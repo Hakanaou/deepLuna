@@ -70,6 +70,10 @@ class LintAmericanSpelling:
         'leaped': 'leapt',  # Exception since leaped looks dumb
         'anyways': 'anyway',
         'licence': 'license',
+        'behaviour': 'behavior',
+        'behaviours': 'behaviors',
+        'honour': 'honor',
+        'honours': 'honors',
     }
 
     def __call__(self, scene_name, pages):
