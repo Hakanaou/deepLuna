@@ -118,19 +118,36 @@ def import_mergetool(tl_db, import_diff):
         if entry_group.is_unique():
             continue
 
+        # Count the occurrences of each option
+        deduped = {}  # (tl, comment) -> list(instances)
+        for entry in entry_group.entries:
+            key = (entry.en_text, entry.comment)
+            if key not in deduped:
+                deduped[key] = []
+            deduped[key].append(entry)
+
         # Generate candidate list
         line = tl_db.tl_line_with_hash(sha)
         msg = "Imported candidates:\n"
         idx = 0
-        for entry in entry_group.entries:
+        numbered_choices = []
+        for tl, comment in deduped:
+            entry_list = deduped[(tl, comment)]
+            entry = entry_list[0]
+            extras = (
+                f" (and {len(entry_list)-1} others)"
+                if len(entry_list) > 1 else ""
+            )
+            basename = os.path.basename(entry.filename)
             msg += (
-                f"{idx}. {os.path.basename(entry.filename)}:L{entry.line}: "
+                f"{idx}. {basename}:L{entry.line}{extras}: "
                 f"{entry.en_text} "
                 f"// {entry.comment.rstrip()}\n"
                 if entry.comment else
-                f"{idx}. {os.path.basename(entry.filename)}:L{entry.line}: "
+                f"{idx}. {basename}:L{entry.line}{extras}: "
                 f"'{entry.en_text}'\n"
             )
+            numbered_choices.append(entry)
             idx += 1
 
         print(
@@ -148,7 +165,7 @@ def import_mergetool(tl_db, import_diff):
                 continue
             if choice_int >= 0 and choice_int < idx:
                 # Commit the relevant line back to the DB
-                selected_tl = entry_group.entries[choice_int]
+                selected_tl = numbered_choices[choice_int]
                 tl_db.set_translation_and_comment_for_hash(
                     sha, selected_tl.en_text, selected_tl.comment)
                 print(Color(Color.GREEN)(
@@ -186,15 +203,30 @@ def perform_import(tl_db, args):
                 if entry_group.is_unique():
                     continue
 
+                # Count the occurrences of each option
+                deduped = {}  # (tl, comment) -> list(instances)
+                for entry in entry_group.entries:
+                    key = (entry.en_text, entry.comment)
+                    if key not in deduped:
+                        deduped[key] = []
+                    deduped[key].append(entry)
+
                 line = tl_db.tl_line_with_hash(sha)
                 msg = "Imported candidates:\n"
-                for entry in entry_group.entries:
+                for tl, comment in deduped:
+                    entry_list = deduped[(tl, comment)]
+                    entry = entry_list[0]
+                    extras = (
+                        f" (and {len(entry_list)-1} others)"
+                        if len(entry_list) > 1 else ""
+                    )
+                    basename = os.path.basename(entry.filename)
                     msg += (
-                        f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                        f"\t{basename}:L{entry.line}{extras}: "
                         f"{entry.en_text} "
                         f"// {entry.comment.rstrip()}\n"
                         if entry.comment else
-                        f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                        f"\t{basename}:L{entry.line}{extras}: "
                         f"{entry.en_text}\n"
                     )
                 print(

@@ -361,15 +361,30 @@ def main():
             if entry_group.is_unique():
                 continue
 
+            # Count the occurrences of each option
+            deduped = {}  # (tl, comment) -> list(instances)
+            for entry in entry_group.entries:
+                key = (entry.en_text, entry.comment)
+                if key not in deduped:
+                    deduped[key] = []
+                deduped[key].append(entry)
+
             line = tl_db.tl_line_with_hash(sha)
             msg = "Imported candidates:\n"
-            for entry in entry_group.entries:
+            for tl, comment in deduped:
+                entry_list = deduped[(tl, comment)]
+                entry = entry_list[0]
+                extras = (
+                    f" (and {len(entry_list)-1} others)"
+                    if len(entry_list) > 1 else ""
+                )
+                basename = os.path.basename(entry.filename)
                 msg += (
-                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"\t{basename}:L{entry.line}{extras}: "
                     f"{entry.en_text} "
                     f"// {entry.comment.rstrip()}\n"
                     if entry.comment else
-                    f"\t{os.path.basename(entry.filename)}:L{entry.line}: "
+                    f"\t{basename}:L{entry.line}{extras}: "
                     f"{entry.en_text}\n"
                 )
             lint_results.append(LintResult(
