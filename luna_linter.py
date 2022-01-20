@@ -76,7 +76,7 @@ class LintAmericanSpelling:
         'honours': 'honors',
     }
 
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
             for line, comment in page:
@@ -99,7 +99,7 @@ class LintAmericanSpelling:
 
 
 class LintUnclosedQuotes:
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         # For each page, just do a dumb check that the quote count is matched
         errors = []
         for page in pages:
@@ -129,7 +129,7 @@ class LintTranslationHoles:
 
     LIKELY_TRANSLATED_THRESH = 0.8
 
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         # What % of lines in this scene are TL'd?
         total_tl_count = 0
         total_line_count = 0
@@ -146,6 +146,24 @@ class LintTranslationHoles:
         if not mostly_translated or fully_translated:
             return []
 
+        # Go accumulate the lines that aren't TLd, have to actually re-fetch
+        # from DB to get the line IDs
+        script_cmds = db.lines_for_scene(scene_name)
+        untranslated_cmds = []
+        for cmd in script_cmds:
+            line = db.tl_line_for_cmd(cmd)
+            if not line.en_text:
+                untranslated_cmds.append(cmd)
+
+        line_report = (
+            f'Scene is {translation_ratio*100:.1f}% translated, but has '
+            f'{total_line_count - total_tl_count} missing lines'
+        )
+        for cmd in untranslated_cmds:
+            if line_report:
+                line_report += "\n"
+            line_report += f"\t Sha: {cmd.jp_hash}, Offset: {cmd.offset}"
+
         # If this file is mostly translated but has holes, warn about it
         return [
             LintResult(
@@ -153,14 +171,13 @@ class LintTranslationHoles:
                 scene_name,
                 None,
                 f'Scene {scene_name} has translation holes',
-                f'Scene is {translation_ratio*100:.1f}% translated, but has '
-                f'{total_line_count - total_tl_count} missing lines',
+                line_report
             )
         ]
 
 
 class LintDanglingCommas:
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         # QA has a lot of false positives for this, so maybe ignore for now
         if scene_name.startswith("QA_"):
             return []
@@ -197,7 +214,7 @@ class LintVerbotenUnicode:
         '’': '\'',
     }
 
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
             for line, comment in page:
@@ -219,7 +236,7 @@ class LintVerbotenUnicode:
 
 
 class LintUnspacedRuby:
-    def __call__(self, scene_name, pages):
+    def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
             for line, comment in page:
@@ -282,7 +299,7 @@ def process_scene(tl_db, scene):
 
     lint_results = []
     for linter in linters:
-        lint_results += linter(scene, pages)
+        lint_results += linter(tl_db, scene, pages)
 
     return lint_results
 
