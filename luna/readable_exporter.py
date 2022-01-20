@@ -281,6 +281,15 @@ class ReadableExporter:
                             translated_text += rstrip_acc
                         cmd_acc = ""
 
+                        # If this line was useless (no comment, no tl)
+                        # just don't even bother to include it
+                        if not translated_text and not human_comments:
+                            translated_text = ""
+                            human_comments = ""
+                            # Move back to default state
+                            state = cls.LexState.EXPECT_BLOCK
+                            continue
+
                         # Create a new entry in our return map
                         # If there is no valid tl or comments, use None instead
                         # of empty string as an indicator
