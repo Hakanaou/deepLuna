@@ -75,6 +75,9 @@ class LintAmericanSpelling:
         'honour': 'honor',
         'honours': 'honors',
         'focussing': 'focusing',
+        'apologise': 'apologize',
+        'apologising': 'apologizing',
+        'apologised': 'apologized',
     }
 
     def __call__(self, db, scene_name, pages):
