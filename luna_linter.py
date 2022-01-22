@@ -245,9 +245,8 @@ class LintUnspacedRuby:
                     continue
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
-                match = re.search(r"<([\w\s]+)\|([\w\s]+)>", line)
-                if match:
-                    ruby = match.group(2)
+                pairs = re.findall(r"<([\w\s]+)\|([\w\s]+)>", line)
+                for subtext, ruby in pairs:
                     spaced_ok = True
                     for i in range(len(ruby)-1):
                         if ruby[i] != ' ' and ruby[i+1] != ' ':
