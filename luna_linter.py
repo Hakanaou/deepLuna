@@ -80,6 +80,7 @@ class LintAmericanSpelling:
         'apologising': 'apologizing',
         'apologised': 'apologized',
         'licence': 'license',
+        'afterwards': 'afterward',
     }
 
     def __call__(self, db, scene_name, pages):
