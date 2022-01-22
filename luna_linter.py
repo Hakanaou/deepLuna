@@ -83,6 +83,13 @@ class LintAmericanSpelling:
         'afterwards': 'afterward',
     }
 
+    def alpha_only(self, word):
+        return ''.join([
+            c for c in word
+            if (c >= 'A' and c <= 'Z')
+            or (c >= 'a' and c <= 'z')
+        ])
+
     def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
@@ -91,7 +98,8 @@ class LintAmericanSpelling:
                     continue
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
-                for word in line.split(' '):
+                for raw_word in line.split(' '):
+                    word = self.alpha_only(raw_word)
                     if word.lower() in self.BRIT_TO_YANK:
                         subs = self.BRIT_TO_YANK[word.lower()]
                         errors.append(LintResult(
