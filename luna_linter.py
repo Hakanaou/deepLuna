@@ -78,6 +78,7 @@ class LintAmericanSpelling:
         'apologise': 'apologize',
         'apologising': 'apologizing',
         'apologised': 'apologized',
+        'licence': 'license',
     }
 
     def __call__(self, db, scene_name, pages):
