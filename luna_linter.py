@@ -66,6 +66,7 @@ class LintAmericanSpelling:
         'woah': 'whoa',
         'favourable': 'favorable',
         'favour': 'favor',
+        'favourite': 'favorite',
         'towards': 'toward',
         'leaped': 'leapt',  # Exception since leaped looks dumb
         'anyways': 'anyway',
