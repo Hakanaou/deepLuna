@@ -74,6 +74,7 @@ class LintAmericanSpelling:
         'behaviours': 'behaviors',
         'honour': 'honor',
         'honours': 'honors',
+        'focussing': 'focusing',
     }
 
     def __call__(self, db, scene_name, pages):
