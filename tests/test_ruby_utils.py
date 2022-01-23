@@ -21,6 +21,17 @@ class LinebreakTests(unittest.TestCase):
         )
         self.assertEqual(self.break_text(in_str), expect_str)
 
+    def test_line_break_exact(self):
+        in_str = (
+            "and forcefully grab her by the arm."
+        )
+        expect_str = (
+            "\nand forcefully grab her by the arm."
+        )
+        result = RubyUtils.linebreak_text(
+            RubyUtils.apply_control_codes(in_str), 55, 55)
+        self.assertEqual(expect_str, result)
+
     def test_line_break_at_55_chars_dangling(self):
         in_str = \
             "You, are you perhaps new to this kind of adult corner?%{n}"

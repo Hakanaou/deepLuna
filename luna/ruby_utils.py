@@ -210,6 +210,7 @@ class RubyUtils:
                     first_word = True
                 else:
                     acc = word
+                    first_word = False
                 start_cursor_pos = 0
                 continue
 
