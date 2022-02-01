@@ -148,6 +148,9 @@ class RubyUtils:
                 elif cc_acc == 's':
                     # Forced space
                     processed_line += " "
+                elif cc_acc == 'nothing':
+                    # Used as a token to allow empty lines
+                    processed_line += ""
                 elif cc_acc == 'i':
                     # Offset ascii glyphs into the italic text region
                     glyph_offset = PUA_OFFSET + 128 * 0
