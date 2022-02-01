@@ -81,6 +81,7 @@ class LintAmericanSpelling:
         'apologised': 'apologized',
         'licence': 'license',
         'afterwards': 'afterward',
+        'mobile phone': 'cell phone',
     }
 
     def alpha_only(self, word):
