@@ -147,6 +147,7 @@ class ReadableExporter:
         brace_count = 0
         translated_text = ""
         human_comments = ""
+        block_start_line = None
         for i in range(len(file_text)):
             c = file_text[i]
             if c == '\n':
@@ -237,6 +238,7 @@ class ReadableExporter:
                     # Now properly inside a context block
                     brace_count += 1
                     state = cls.LexState.DEFAULT_BLOCK
+                    block_start_line = line_counter
                     cmd_acc = ""
                     continue
 
@@ -364,6 +366,12 @@ class ReadableExporter:
 
                 # Append the character to the cmd_buf
                 cmd_acc += c
+
+        # If we exit the parser and are still inside a block, that's
+        # a parse error
+        if state == cls.LexState.DEFAULT_BLOCK:
+            raise cls.ParseError(
+                f"Unterminated line block on {filename}:{block_start_line}")
 
         return ret
 

@@ -392,7 +392,7 @@ class TranslationDb:
         # Try to parse it to a diff
         return ReadableExporter.import_text(filename)
 
-    def parse_update_file_list(self, filenames):
+    def parse_update_file_list(self, filenames, ignore_errors=True):
         # Load diffs for each file
         diff = ReadableExporter.Diff()
         for filename in filenames:
@@ -403,6 +403,8 @@ class TranslationDb:
                     f"Failed to apply updates from {filename}: "
                     f"{e}"
                 )
+                if not ignore_errors:
+                    raise e
 
         return diff
 

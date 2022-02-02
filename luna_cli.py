@@ -186,7 +186,8 @@ def perform_import(tl_db, args):
             candidate_files.append(os.path.join(basedir, filename))
 
     # Generate a diff
-    import_diff = tl_db.parse_update_file_list(candidate_files)
+    import_diff = tl_db.parse_update_file_list(
+        candidate_files, ignore_errors=not args.strict_import)
 
     # Apply non-conflict data immediately
     tl_db.apply_diff(import_diff)
