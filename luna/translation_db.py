@@ -181,14 +181,23 @@ class TranslationDb:
             )
 
     def generate_script_text_mrg(self, perform_charswap=False):
+        offset_to_string = self.generate_linebroken_text_map(perform_charswap)
+        return self.pack_linebroken_text_to_mrg(offset_to_string)
+
+    def generate_linebroken_text_map(self, perform_charswap=False):
         # Iterate each scene in the translation DB, apply line breaking
         # and control codes and stick the result into a map of offset -> string
         offset_to_string = {}
+
         for scene_name, scene_commands in self._scene_map.items():
             cursor_position = 0
             prev_page_number = None
             scene_is_qa = scene_name.startswith('QA')
-            for command in scene_commands:
+            # We need some amount of lookahead for glue lines, so iterate
+            # by offset here
+            for cmd_offset in range(len(scene_commands)):
+                command = scene_commands[cmd_offset]
+
                 # Pull the translated text for this line from the SHA-addressed
                 # translation table
                 tl_line = self._line_by_hash[command.jp_hash]
@@ -234,6 +243,13 @@ class TranslationDb:
                         self._charswap_map.get(c, c) for c in coded_text
                     ])
 
+                # If this line is glued, and would start with a space, but the
+                # preceding line ended in a newline, drop the leading space.
+                if command.is_glued and cmd_offset - 1 >= 0:
+                    prev_broken_line = offset_to_string[cmd_offset - 1]
+                    if prev_broken_line[-1] == '\n':
+                        coded_text = coded_text[1:]
+
                 # Break the text, unless this is a QA scene in which case
                 # it's all manual
                 linebroken_text = (
@@ -256,6 +272,36 @@ class TranslationDb:
                     cursor_position = \
                         cursor_position % Constants.CHARS_PER_LINE
 
+                # Test to see if the next line is glued
+                if cmd_offset + 1 < len(scene_commands):
+                    next_cmd = scene_commands[cmd_offset+1]
+                    if next_cmd.is_glued:
+                        # Need to check if glueing this line screws anything up
+                        # - If next line starts with space, and current line is
+                        #   precicely 55 chars, force newline at the end of
+                        #   this current line
+                        next_line = self._line_by_hash[next_cmd.jp_hash]
+                        next_tl = next_line.en_text or tl_line.jp_text
+                        if next_tl[0] == ' ' and linebroken_text[-1] != '\n':
+                            if cursor_position == 0:
+                                linebroken_text += "\n"
+                                cursor_position = 0
+
+                        # - If next line does not start with a space, re-break
+                        #   this line accounting for the glue characters as
+                        #   part of the final word
+                        if next_tl[0] != ' ' and linebroken_text[-1] != '\n':
+                            # Change the final space in the broken line to
+                            # another newline
+                            fragments = linebroken_text.split(' ')
+                            linebroken_text = ' '.join(
+                                fragments[:-2] + ['\n'.join(fragments[-2:])])
+
+                            # Re-calc new cursor position
+                            final_broken_line = linebroken_text.split('\n')[-1]
+                            cursor_position = RubyUtils.noruby_len(
+                                final_broken_line)
+
                 # Append trailing \r\n if the original text had it
                 processed_string = linebroken_text + (
                     "\r\n"
@@ -266,6 +312,9 @@ class TranslationDb:
                 # Stick the processed string into our map
                 offset_to_string[command.offset] = processed_string
 
+        return offset_to_string
+
+    def pack_linebroken_text_to_mrg(self, offset_to_string):
         # Now that we have processed all the strings, iterate from 0 to
         # max_offset and write each string entry into an MZP.
         max_offset = max(offset_to_string.keys())

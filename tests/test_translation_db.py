@@ -68,3 +68,45 @@ class LinebreakTests(unittest.TestCase):
                         is_glued=True),
             ]
         )
+
+    def mock_db(self, lines, cmds):
+        scene_map = {'test_scene': cmds}
+        line_by_hash = {line.content_hash(): line for line in lines}
+        overrides_by_offset = {}
+        return TranslationDb(scene_map, line_by_hash, overrides_by_offset)
+
+    def test_glue_lookahead(self):
+        # Morning should get pre-emptively broken
+        lines = [
+            TranslationDb.TLLine("jp0", "\"Good morning, Shiki-san. You're up early this morning."),
+            TranslationDb.TLLine("jp1", "\"")
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+        ]
+        expect = {
+            0: "\"Good morning, Shiki-san. You're up early this\nmorning.",
+            1: "\"",
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEquals(result, expect)
+
+    def test_glue_aligned_line(self):
+        # Extra newline should be prepended
+        lines = [
+            TranslationDb.TLLine("jp0", "Laughing in frantic desperation, I run over to Arcueid,"),
+            TranslationDb.TLLine("jp1", " and forcefully grab her by the arm.")
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+        ]
+        expect = {
+            0: "Laughing in frantic desperation, I run over to Arcueid,\n",
+            1: "and forcefully grab her by the arm.",
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEquals(result, expect)
