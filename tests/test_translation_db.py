@@ -91,7 +91,7 @@ class LinebreakTests(unittest.TestCase):
         }
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_glue_aligned_line(self):
         # Extra newline should be prepended
@@ -109,4 +109,44 @@ class LinebreakTests(unittest.TestCase):
         }
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
+
+    def test_glued_multiple(self):
+        lines = [
+            TranslationDb.TLLine("jp0", "When I touched one of them with my finger..."),
+            TranslationDb.TLLine("jp1", "Poke,"),
+            TranslationDb.TLLine("jp2", "my finger sank in."),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+            TranslationDb.TextCommand(2, lines[2].content_hash(), 0, is_glued=True),
+        ]
+        expect = {
+            0: 'When I touched one of them with my\nfinger...',
+            1: 'Poke,',
+            2: 'my finger sank in.',
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)
+
+    def test_glued_multiple_spaced(self):
+        lines = [
+            TranslationDb.TLLine("jp0", "When I touched one of them with my finger..."),
+            TranslationDb.TLLine("jp1", " Poke,"),
+            TranslationDb.TLLine("jp2", " my finger sank in."),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+            TranslationDb.TextCommand(2, lines[2].content_hash(), 0, is_glued=True),
+        ]
+        expect = {
+            0: 'When I touched one of them with my finger...',
+            1: ' Poke,',
+            2: ' my\nfinger sank in.',
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)

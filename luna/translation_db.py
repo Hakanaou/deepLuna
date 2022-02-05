@@ -245,9 +245,10 @@ class TranslationDb:
 
                 # If this line is glued, and would start with a space, but the
                 # preceding line ended in a newline, drop the leading space.
-                if command.is_glued and cmd_offset - 1 >= 0:
-                    prev_broken_line = offset_to_string[cmd_offset - 1]
-                    if prev_broken_line[-1] == '\n':
+                if coded_text and command.is_glued and cmd_offset - 1 >= 0:
+                    prev_cmd = scene_commands[cmd_offset-1]
+                    prev_broken_line = offset_to_string[prev_cmd.offset]
+                    if prev_broken_line[-1] == '\n' and coded_text[0] == ' ':
                         coded_text = coded_text[1:]
 
                 # Break the text, unless this is a QA scene in which case
@@ -275,14 +276,15 @@ class TranslationDb:
                 # Test to see if the next line is glued
                 if cmd_offset + 1 < len(scene_commands):
                     next_cmd = scene_commands[cmd_offset+1]
-                    if next_cmd.is_glued:
+                    if next_cmd.is_glued and linebroken_text:
                         # Need to check if glueing this line screws anything up
                         # - If next line starts with space, and current line is
                         #   precicely 55 chars, force newline at the end of
                         #   this current line
                         next_line = self._line_by_hash[next_cmd.jp_hash]
                         next_tl = next_line.en_text or tl_line.jp_text
-                        if next_tl[0] == ' ' and linebroken_text[-1] != '\n':
+                        if next_tl and next_tl[0] == ' ' \
+                                and linebroken_text[-1] != '\n':
                             if cursor_position == 0:
                                 linebroken_text += "\n"
                                 cursor_position = 0
@@ -290,7 +292,8 @@ class TranslationDb:
                         # - If next line does not start with a space, re-break
                         #   this line accounting for the glue characters as
                         #   part of the final word
-                        if next_tl[0] != ' ' and linebroken_text[-1] != '\n':
+                        if next_tl and next_tl[0] != ' ' \
+                                and linebroken_text[-1] != '\n':
                             # Change the final space in the broken line to
                             # another newline
                             fragments = linebroken_text.split(' ')
