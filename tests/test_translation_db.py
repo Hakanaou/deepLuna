@@ -123,9 +123,9 @@ class LinebreakTests(unittest.TestCase):
             TranslationDb.TextCommand(2, lines[2].content_hash(), 0, is_glued=True),
         ]
         expect = {
-            0: 'When I touched one of them with my\nfinger...',
+            0: 'When I touched one of them with my finger...',
             1: 'Poke,',
-            2: 'my finger sank in.',
+            2: 'my\nfinger sank in.',
         }
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()
@@ -163,6 +163,23 @@ class LinebreakTests(unittest.TestCase):
         expect = {
             0: '―――\r\n',
             1: ' ―――\r\n',
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)
+
+    def test_oh_cra(self):
+        lines = [
+            TranslationDb.TLLine("jp0", "\"Oh, cra―― ―――"),
+            TranslationDb.TLLine("jp1", "Hi.\""),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 1),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 1, is_glued=True),
+        ]
+        expect = {
+            0: '\"Oh, cra―― ―――',
+            1: 'Hi.\"'
         }
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()

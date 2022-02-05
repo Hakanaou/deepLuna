@@ -268,6 +268,7 @@ class TranslationDb:
                 # the new cursor position accordingly
                 did_break_line = len(linebroken_text.split('\n')) > 1
                 final_broken_line = linebroken_text.split('\n')[-1]
+                old_cursor_position = cursor_position
                 if did_break_line:
                     cursor_position = RubyUtils.noruby_len(final_broken_line)
                 else:
@@ -291,11 +292,25 @@ class TranslationDb:
                                 linebroken_text += "\n"
                                 cursor_position = 0
 
-                        # - If next line does not start with a space, re-break
-                        #   this line accounting for the glue characters as
-                        #   part of the final word
+                        # If next line does not start with a space, re-break
+                        # this line accounting for the glue characters as
+                        # part of the final word IF it would cause a linebreak
+                        # when added
+                        next_word_len = RubyUtils.noruby_len(
+                            next_tl.split(' ')[0])
+                        next_word_would_break = False
+                        if did_break_line:
+                            next_word_would_break = \
+                                RubyUtils.noruby_len(final_broken_line) + \
+                                next_word_len > Constants.CHARS_PER_LINE
+                        else:
+                            next_word_would_break = \
+                                old_cursor_position + \
+                                RubyUtils.noruby_len(final_broken_line) + \
+                                next_word_len > Constants.CHARS_PER_LINE
                         if next_tl and next_tl[0] != ' ' \
-                                and linebroken_text[-1] != '\n':
+                                and linebroken_text[-1] != '\n' \
+                                and next_word_would_break:
                             # Change the final space in the broken line to
                             # another newline
                             fragments = linebroken_text.split(' ')
