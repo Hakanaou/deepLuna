@@ -59,6 +59,7 @@ class LintAmericanSpelling:
         'colour': 'color',
         'colours': 'colors',
         'defence': 'defense',
+        'self-defence': 'self-defense',
         'offence': 'offense',
         'speciality': 'specialty',
         'realise': 'realize',
