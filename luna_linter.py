@@ -83,6 +83,7 @@ class LintAmericanSpelling:
         'licence': 'license',
         'afterwards': 'afterward',
         'mobile phone': 'cell phone',
+        'demeanour': 'demeanor',
     }
 
     def alpha_only(self, word):
