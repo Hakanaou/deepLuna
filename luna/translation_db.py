@@ -247,7 +247,9 @@ class TranslationDb:
                 # preceding line ended in a newline, drop the leading space.
                 if coded_text and command.is_glued and cmd_offset - 1 >= 0:
                     prev_cmd = scene_commands[cmd_offset-1]
-                    prev_broken_line = offset_to_string[prev_cmd.offset]
+                    # Need to strip the padding \r\n from lines
+                    prev_broken_line = offset_to_string[
+                        prev_cmd.offset].replace("\r\n", "")
                     if prev_broken_line[-1] == '\n' and coded_text[0] == ' ':
                         coded_text = coded_text[1:]
 

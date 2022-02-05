@@ -150,3 +150,20 @@ class LinebreakTests(unittest.TestCase):
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()
         self.assertEqual(result, expect)
+
+    def test_glued_no_break(self):
+        lines = [
+            TranslationDb.TLLine("―――\r\n", "―――"),
+            TranslationDb.TLLine(" ―――\r\n", " ―――"),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 1),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 1, is_glued=True),
+        ]
+        expect = {
+            0: '―――\r\n',
+            1: ' ―――\r\n',
+        }
+        db = self.mock_db(lines, cmds)
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)
