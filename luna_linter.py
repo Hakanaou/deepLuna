@@ -139,6 +139,35 @@ class LintUnclosedQuotes:
         return errors
 
 
+class LintChoiceLeadingSpace:
+    def __call__(self, db, scene_name, pages):
+        errors = []
+
+        # Get the actual script cmds for this one
+        script_cmds = db.lines_for_scene(scene_name)
+
+        # Filter for choices
+        choice_cmds = [cmd for cmd in script_cmds if cmd.is_choice]
+
+        # Scan for lint breakers
+        for cmd in choice_cmds:
+            line = db.tl_line_for_cmd(cmd)
+            if not line.en_text:
+                continue
+
+            # No leading space?
+            if line.en_text[0] != ' ':
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    cmd.page_number,
+                    line.en_text,
+                    "Choice text must begin with leading space"
+                ))
+
+        return errors
+
+
 class LintTranslationHoles:
     """
     If a file is _mostly_ translated but has some untranslated strings in it
@@ -313,6 +342,7 @@ def process_scene(tl_db, scene):
         LintVerbotenUnicode(),
         LintUnspacedRuby(),
         LintTranslationHoles(),
+        LintChoiceLeadingSpace(),
     ]
 
     lint_results = []
