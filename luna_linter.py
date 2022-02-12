@@ -168,6 +168,64 @@ class LintChoiceLeadingSpace:
         return errors
 
 
+class LintPageOverflow:
+
+    MAX_LINES_PER_PAGE = 12
+
+    def __init__(self, db):
+        # Pregenerate text map so we don't incur it on every __call__
+        self._text_map = db.generate_linebroken_text_map()
+
+    def __call__(self, db, scene_name, _pages):
+        errors = []
+
+        # Ignore the orphan line file
+        if scene_name == 'ORPHANED_LINES':
+            return errors
+
+        # Get the script cmds
+        script_cmds = db.lines_for_scene(scene_name)
+
+        # Paginate
+        page_cmds = paginate(script_cmds)
+
+        # For each page, check if when linebroken it ends up too long
+        for page in page_cmds:
+            # Do we skip this page?
+            is_lint_ignored = any([
+                ignore_linter(self.__class__.__name__,
+                              db.tl_line_for_cmd(cmd).comment)
+                for cmd in page
+            ])
+            if is_lint_ignored:
+                continue
+
+            # Consolidate the page text into one string
+            page_text = ""
+            for cmd in page:
+                # For glued lines, erase the trailing \n on the line before
+                if cmd.is_glued:
+                    page_text = page_text[:-1] + self._text_map[cmd.offset]
+                else:
+                    page_text += self._text_map[cmd.offset]
+
+            # Don't count the trailing newline
+            page_text = page_text.rstrip()
+
+            page_lines = len(page_text.split("\n"))
+            if page_lines > self.MAX_LINES_PER_PAGE:
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    page[0].page_number,
+                    page_text,
+                    f"Page too long (is {page_lines}, "
+                    f"max is {self.MAX_LINES_PER_PAGE})"
+                ))
+
+        return errors
+
+
 class LintTranslationHoles:
     """
     If a file is _mostly_ translated but has some untranslated strings in it
@@ -311,10 +369,7 @@ class LintUnspacedRuby:
         return errors
 
 
-def process_scene(tl_db, scene):
-    # Convert the scene to a list of pages, where each page
-    # is a list of strings
-    script_cmds = tl_db.lines_for_scene(scene)
+def paginate(script_cmds):
     pages = []
     page_acc = []
     current_page = None
@@ -325,29 +380,29 @@ def process_scene(tl_db, scene):
             page_acc = []
             current_page = cmd.page_number
 
-        line = tl_db.tl_line_for_cmd(cmd)
-        page_acc.append((
-            line.en_text,
-            line.comment,
-        ))
+        page_acc.append(cmd)
 
     if page_acc:
         pages.append(page_acc)
 
-    # Run it through each of the linters
-    linters = [
-        LintAmericanSpelling(),
-        LintUnclosedQuotes(),
-        LintDanglingCommas(),
-        LintVerbotenUnicode(),
-        LintUnspacedRuby(),
-        LintTranslationHoles(),
-        LintChoiceLeadingSpace(),
+    return pages
+
+
+def process_scene(tl_db, linters, scene):
+    # Convert the scene to a list of pages, where each page
+    # is a list of strings
+    script_cmds = tl_db.lines_for_scene(scene)
+    paged_script_cmds = paginate(script_cmds)
+
+    script_pages = [
+        [(tl_db.tl_line_for_cmd(cmd).en_text,
+          tl_db.tl_line_for_cmd(cmd).comment) for cmd in page]
+        for page in paged_script_cmds
     ]
 
     lint_results = []
     for linter in linters:
-        lint_results += linter(tl_db, scene, pages)
+        lint_results += linter(tl_db, scene, script_pages)
 
     return lint_results
 
@@ -461,9 +516,21 @@ def main():
                 msg[:-1]
             ))
 
+    # Run linter setup
+    linters = [
+        LintAmericanSpelling(),
+        LintUnclosedQuotes(),
+        LintDanglingCommas(),
+        LintVerbotenUnicode(),
+        LintUnspacedRuby(),
+        LintTranslationHoles(),
+        LintChoiceLeadingSpace(),
+        LintPageOverflow(tl_db),
+    ]
+
     # Iterate each scene
     for scene in tl_db.scene_names():
-        lint_results += process_scene(tl_db, scene)
+        lint_results += process_scene(tl_db, linters, scene)
 
     report_results(lint_results)
     sys.exit(1 if lint_results else 0)
