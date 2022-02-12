@@ -50,6 +50,10 @@ class LinebreakTests(unittest.TestCase):
         )
         self.assertEqual(self.break_text(in_str), expect_str)
 
+    def test_line_break_literal_percent(self):
+        in_str = "This is a % symbol"
+        self.assertEqual(self.break_text(in_str), in_str)
+
     def test_linebreak_with_ruby(self):
         in_str = (
             "<Death by Immolation|B l a z e         >. "

@@ -131,11 +131,21 @@ class RubyUtils:
             if c == '%':
                 has_pct = True
                 continue
-            if has_pct and c == '{':
-                in_cc = True
-                has_pct = False
-                cc_acc = ""
-                continue
+
+            # If we see percent then {, open a command context
+            # If we see percent then anything else, the percent was literal.
+            if has_pct:
+                if c == '{':
+                    in_cc = True
+                    has_pct = False
+                    cc_acc = ""
+                    continue
+                else:
+                    in_cc = False
+                    has_pct = False
+                    cc_acc = ""
+                    processed_line += "%" + c
+                    continue
 
             # If we hit the end of a control code, see what the command was
             if in_cc and c == '}':
