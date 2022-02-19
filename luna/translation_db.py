@@ -225,7 +225,8 @@ class TranslationDb:
                 # reset the accumulated cursor position
                 # However, if this is a QA scene, _all_ lines count as glued
                 # due to modifications to the allscr.
-                if not command.is_glued and not scene_is_qa:
+                force_glue = '%{force_glue}' in tl_text
+                if not (command.is_glued or force_glue) and not scene_is_qa:
                     cursor_position = 0
 
                 # If we have turned the page, we also want to rezero the
