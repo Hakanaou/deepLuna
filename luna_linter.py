@@ -84,6 +84,10 @@ class LintAmericanSpelling:
         'afterwards': 'afterward',
         'mobile phone': 'cell phone',
         'demeanour': 'demeanor',
+        'street light': 'streetlight',
+        'focussed': 'focused',
+        'fulfil': 'fulfill',
+        'fulfilment': 'fulfillment',
     }
 
     def alpha_only(self, word):
