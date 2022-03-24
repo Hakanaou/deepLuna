@@ -4,6 +4,8 @@ import re
 import os
 import sys
 
+import Levenshtein
+
 from luna.translation_db import TranslationDb
 from luna.constants import Constants
 
@@ -49,6 +51,77 @@ def ignore_linter(linter_name, line_comment):
     comment = line_comment.lower()
     search = f'lint-off:{linter_name}'.lower()
     return search in comment
+
+
+class LintNameMisspellings:
+
+    NAMES = [
+        "Arcueid",
+        "Arcueids",
+        "Arima",
+        "Arimas",
+        "Akiha",
+        "Akihas",
+        "Tohno",
+        "Tohnos",
+        "Makihisa",
+        "Makihisas",
+        "Saiki",
+        "Saikis",
+        "Shiki",
+        "Shikis",
+    ]
+
+    NAME_THRESH = 2
+
+    def depunctuate(self, word):
+        return ''.join([
+            c for c in word
+            if (c >= 'A' and c <= 'Z')
+            or (c >= 'a' and c <= 'z')
+        ])
+
+    def multisplit(self, string, sep_list):
+        ret = []
+        acc = ""
+        for c in string:
+            if c in sep_list:
+                ret.append(acc)
+                acc = ""
+            else:
+                acc += c
+
+        if acc:
+            ret.append(acc)
+
+        return ret
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+                for raw_word in self.multisplit(line, ' -―'):
+                    word = self.depunctuate(raw_word)
+
+                    # If it's a correct spelling, skip
+                    if word in self.NAMES:
+                        continue
+
+                    for name in self.NAMES:
+                        if Levenshtein.distance(word, name) < self.NAME_THRESH:
+                            errors.append(LintResult(
+                                self.__class__.__name__,
+                                scene_name,
+                                page[0],
+                                line,
+                                f"Is '{word}' supposed to be '{name}'"
+                            ))
+
+        return errors
 
 
 class LintAmericanSpelling:
@@ -535,6 +608,7 @@ def main():
         LintTranslationHoles(),
         LintChoiceLeadingSpace(),
         LintPageOverflow(tl_db),
+        LintNameMisspellings(),
     ]
 
     # Iterate each scene
