@@ -55,24 +55,26 @@ def ignore_linter(linter_name, line_comment):
 
 class LintNameMisspellings:
 
-    NAMES = [
+    BASE_NAMES = [
         "Arcueid",
-        "Arcueids",
         "Arima",
-        "Arimas",
         "Akiha",
-        "Akihas",
         "Tohno",
-        "Tohnos",
         "Makihisa",
-        "Makihisas",
         "Saiki",
-        "Saikis",
         "Shiki",
-        "Shikis",
     ]
 
     NAME_THRESH = 2
+
+    def __init__(self):
+        # Construct name permutations
+        # Note that ' is stripped, so posessive and plurals are both covered by
+        # the postfix 's'
+        self._names = set()
+        for name in self.BASE_NAMES:
+            self._names.add(name)
+            self._names.add(name + 's')
 
     def depunctuate(self, word):
         return ''.join([
@@ -108,10 +110,10 @@ class LintNameMisspellings:
                     word = self.depunctuate(raw_word)
 
                     # If it's a correct spelling, skip
-                    if word in self.NAMES:
+                    if word in self._names:
                         continue
 
-                    for name in self.NAMES:
+                    for name in self._names:
                         if Levenshtein.distance(word, name) < self.NAME_THRESH:
                             errors.append(LintResult(
                                 self.__class__.__name__,
