@@ -88,6 +88,11 @@ class LintAmericanSpelling:
         'focussed': 'focused',
         'fulfil': 'fulfill',
         'fulfilment': 'fulfillment',
+        'neighbouring': 'neighboring',
+        'neighbouring': 'neighboring',
+        'marvelled': 'marveled',
+        'marvelling': 'marveling',
+        'ageing': 'aging',
     }
 
     def alpha_only(self, word):
