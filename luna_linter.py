@@ -59,6 +59,7 @@ class LintNameMisspellings:
     BASE_NAMES = [
         "Akiha",
         "Ando",
+        "Aoko",
         "Arach",
         "Arcueid",
         "Arihiko",
@@ -66,9 +67,11 @@ class LintNameMisspellings:
         "Ciel",
         "Gouto",
         "Hisui",
+        "Karius",
         "Kohaku",
         "Makihisa",
         "Mario",
+        "Mio",
         "Noel",
         "Roa",
         "Saiki",
@@ -80,7 +83,8 @@ class LintNameMisspellings:
     ]
 
     TYPO_EXCLUDE = set([
-        'And'  # Triggers false positives on Ando
+        'And',   # Triggers false positives on Ando
+        'Miss',  # Triggers false positives on Mio
     ])
 
     NAME_THRESH = 2
@@ -125,7 +129,7 @@ class LintNameMisspellings:
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
                 line = RubyUtils.apply_control_codes(line)
-                for raw_word in self.multisplit(line, ' -―'):
+                for raw_word in self.multisplit(line, ' -―\n'):
                     word = self.depunctuate(raw_word)
 
                     # If it's a correct spelling, skip
