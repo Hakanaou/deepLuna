@@ -4,8 +4,11 @@ import re
 import os
 import sys
 
+import Levenshtein
+
 from luna.translation_db import TranslationDb
 from luna.constants import Constants
+from luna.ruby_utils import RubyUtils
 
 
 class Color:
@@ -51,6 +54,102 @@ def ignore_linter(linter_name, line_comment):
     return search in comment
 
 
+class LintNameMisspellings:
+
+    BASE_NAMES = [
+        "Akiha",
+        "Ando",
+        "Aoko",
+        "Arach",
+        "Arcueid",
+        "Arihiko",
+        "Arima",
+        "Ciel",
+        "Gouto",
+        "Hisui",
+        "Karius",
+        "Kohaku",
+        "Makihisa",
+        "Mario",
+        "Mio",
+        "Noel",
+        "Roa",
+        "Saiki",
+        "Satsuki",
+        "Shiki",
+        "Tohno",
+        "Vlov",
+        "Yumizuka",
+    ]
+
+    TYPO_EXCLUDE = set([
+        'And',   # Triggers false positives on Ando
+        'Miss',  # Triggers false positives on Mio
+    ])
+
+    NAME_THRESH = 2
+
+    def __init__(self):
+        # Construct name permutations
+        # Note that ' is stripped, so posessive and plurals are both covered by
+        # the postfix 's'
+        self._names = set()
+        for name in self.BASE_NAMES:
+            self._names.add(name)
+            self._names.add(name + 's')
+
+    def depunctuate(self, word):
+        return ''.join([
+            c for c in word
+            if (c >= 'A' and c <= 'Z')
+            or (c >= 'a' and c <= 'z')
+        ])
+
+    def multisplit(self, string, sep_list):
+        ret = []
+        acc = ""
+        for c in string:
+            if c in sep_list:
+                ret.append(acc)
+                acc = ""
+            else:
+                acc += c
+
+        if acc:
+            ret.append(acc)
+
+        return ret
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+                line = RubyUtils.apply_control_codes(line)
+                for raw_word in self.multisplit(line, ' -―\n'):
+                    word = self.depunctuate(raw_word)
+
+                    # If it's a correct spelling, skip
+                    if word in self._names or word in self.TYPO_EXCLUDE:
+                        continue
+
+                    for name in self._names:
+
+                        if Levenshtein.distance(word, name) < self.NAME_THRESH:
+                            errors.append(LintResult(
+                                self.__class__.__name__,
+                                scene_name,
+                                page[0],
+                                line,
+                                f"Is '{word}' supposed to be '{name}'"
+                            ))
+
+        return errors
+
+
 class LintAmericanSpelling:
 
     BRIT_TO_YANK = {
@@ -88,6 +187,11 @@ class LintAmericanSpelling:
         'focussed': 'focused',
         'fulfil': 'fulfill',
         'fulfilment': 'fulfillment',
+        'neighbouring': 'neighboring',
+        'neighbouring': 'neighboring',
+        'marvelled': 'marveled',
+        'marvelling': 'marveling',
+        'ageing': 'aging',
     }
 
     def alpha_only(self, word):
@@ -530,6 +634,7 @@ def main():
         LintTranslationHoles(),
         LintChoiceLeadingSpace(),
         LintPageOverflow(tl_db),
+        LintNameMisspellings(),
     ]
 
     # Iterate each scene
