@@ -234,6 +234,14 @@ class LintUnclosedQuotes:
             if any([line is None for line, comment in page]):
                 continue
 
+            # If any of the lines in the page contain a lint-off pragma, skip
+            lint_ignored = any([
+                ignore_linter(self.__class__.__name__, comment)
+                for (line, comment) in page
+            ])
+            if lint_ignored:
+                continue
+
             raw_text = [line for line, _comment in page if line]
             quote_count = len([c for c in ''.join(raw_text) if c == '"'])
             if quote_count & 1:
