@@ -1,5 +1,5 @@
 # deepLuna
-Extractor/Editor/Translator/Injector for Tsukihime Remake
+Extractor/Injector for Tsukihime Remake
 
 ## About
 deepLuna is a Python script with a GUI interface that works as an extractor/injector for the text of the Tsukihime Remake game on Switch and possibly on PS4, while taking into account the whole internal structure of the script.
