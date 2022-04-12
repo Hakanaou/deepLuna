@@ -2,7 +2,7 @@
 Extractor/Editor/Translator/Injector for Tsukihime Remake
 
 ## About
-deepLuna, from "deepL", the machine translation service, and "Luna", the name of the Roman Moon goddess, is a Python script with a GUI interface that works as an extractor/editor/translator (with deepL API)/injector for the text of the Tsukihime Remake game on Switch and possibly on PS4, while taking into account the whole internal structure of the script.
+deepLuna is a Python script with a GUI interface that works as an extractor/injector for the text of the Tsukihime Remake game on Switch and possibly on PS4, while taking into account the whole internal structure of the script.
 
 ## Installation
 You just need a regular Python distribution, for example the last one from https://www.python.org/downloads/, and then launch the script deepLuna.py using a Python IDE, for example IDLE that you get by default, or some other (Spyder, Pyzo, etc.).
@@ -49,19 +49,6 @@ The main editor window contains three main elements:
 **Save**: When you finish your translation, simply click on this button to save everything. **IMPORTANT NOTE:** This operation might also take a few seconds, this is also normal.
 
 **Search**: Opens a window to search for some text in Japanese/Translated fields (comments are not included). Enter the text in the first field, and click on "Search". Move between the results with "Previous"/"Next". If you want to replace some text (works only for the translated text for obvious reasons), simply use the last field in the window and then click on "Replace"/"Replace all" (the number of results will update automatically). This allows you to search for text only in the selected scene, not in the whole game script.
-
-### Translating the text
-Select an offset or a range of offset (using Shift+double-click), then click on the "Translate" button in the main screen, a new window will open. The first time you execute the script, you'll have to configure three options (after that, they will be saved in a config.ini file created in deepLuna folder after the initial launch and load automatically everytime you launch deepLuna):
-
-a) "deepL API link": Input here your API link(s) from deepL (replace the 0 that is there). If you have several of them, just separate them by a comma - the script will try them successively when a translation request fails. Currently works only for free deepL accounts (possible future update for a pro deepL API link). NOTE: If you copy/paste your API link and it doesn't work, make sure that there is not an additional space character that was copied at the end of the link, this might happen.
-
-b) "Language": Put the initials of the language into which you want to translate the script (e.g. EN for english, FR for french, DE for german, IT for italian, RU for russian, PL for polish, ES for spansih, etc.)
-
-c) "Block translation": If you keep this box unchecked, deepLuna will send each line separately to deepL for translation. If you check the box, deepLuna will glue all the lines from the selected range of offsets together, and send the whole block to deepL before splitting them again. From experience, the latter option might improve the quality of translation since you give more context to deepL, but on the other hand produces sometimes completely unrelated translated sentences in the middle if the block is really big. You have to play around to see what option is the best depending on context and chosen sentences.
-
-IMPORTANT NOTE: The furigana are thrown away during translation at the moment since their structure prevent deepL from giving a consistent translation, and also because their meaning and positioning sometimes doesn't match at all the original word (Nasu writing style is really something...). Maybe I'll try to implement something to deal with this problem in the future, but for the moment it is as it is.
-
-Now, it suffices to click on "OK" and wait until translation finishes. If something fails (too much deepL requests for example), the program will tell you and if you've chosen the line-by-line translation approach, will point you out the line where it stopped.
 
 ### Injecting the text back
 Easy as pie, simply click on the button "Insert" and wait a little bit (it might take up to ~20 seconds on some older computers). deepLuna will generate a new script file of the form "script_text_translatedDATETIME.mrg", with DATETIME being the date and time of insertion (to avoid overwriting files and keeping backups).
