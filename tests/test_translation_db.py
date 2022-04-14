@@ -184,3 +184,23 @@ class LinebreakTests(unittest.TestCase):
         db = self.mock_db(lines, cmds)
         result = db.generate_linebroken_text_map()
         self.assertEqual(result, expect)
+
+    def test_glued_doublewide(self):
+        lines = [
+            TranslationDb.TLLine(
+                "jp0",
+                "\"Tsk, can't you last even two minutes, you weakling... "
+                "I guess we've no choice but to talk it out now."
+            ),
+            TranslationDb.TLLine("jp1", "―――"),
+            TranslationDb.TLLine(
+                "jp2", "Oi, get back Noel! You'll break your damn neck!\""),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+            TranslationDb.TextCommand(2, lines[2].content_hash(), 0, is_glued=True),
+        ]
+        db = self.mock_db(lines, cmds)
+        with self.assertRaises(RuntimeError):
+            db.generate_linebroken_text_map()

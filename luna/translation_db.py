@@ -312,11 +312,25 @@ class TranslationDb:
                         if next_tl and next_tl[0] != ' ' \
                                 and linebroken_text[-1] != '\n' \
                                 and next_word_would_break:
-                            # Change the final space in the broken line to
-                            # another newline
-                            fragments = linebroken_text.split(' ')
-                            linebroken_text = ' '.join(
-                                fragments[:-2] + ['\n'.join(fragments[-2:])])
+                            # If the broken line contains spaces, change
+                            # the final space to a newline
+                            if ' ' in linebroken_text:
+                                fragments = linebroken_text.split(' ')
+                                linebroken_text = ' '.join(
+                                    fragments[:-2] +
+                                    ['\n'.join(fragments[-2:])])
+                            else:
+                                # If there's no space we can repurpose,
+                                # we would have to go back to the _previous_
+                                # line to find a natural break. We can't, so
+                                # crash here and force the editor to go put in
+                                # a manual %{n} or %{s} somewhere.
+                                raise RuntimeError(
+                                    f"Fixing glue for offset {command.offset} "
+                                    "requires too much backtracking. "
+                                    "Insert extra whitespace to allow first "
+                                    "order line breaks."
+                                )
 
                             # Re-calc new cursor position
                             final_broken_line = linebroken_text.split('\n')[-1]
