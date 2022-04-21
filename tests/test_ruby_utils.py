@@ -74,3 +74,8 @@ class LinebreakTests(unittest.TestCase):
             "<Death by Conviction|P u n i s h          >."
         )
         self.assertEqual(self.break_text(in_str), expect_str)
+
+    def test_linebreak_single_quote(self):
+        in_str = '"'
+        out_str = RubyUtils.linebreak_text(in_str, 55, 54)
+        self.assertEqual(in_str, out_str)

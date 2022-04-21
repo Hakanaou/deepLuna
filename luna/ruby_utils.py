@@ -201,7 +201,7 @@ class RubyUtils:
     @classmethod
     def linebreak_text(cls, line, max_linelen, start_cursor_pos=0):
         # If the line is already shorter than the desired length, just return
-        if cls.noruby_len(line) + start_cursor_pos < max_linelen:
+        if cls.noruby_len(line) + start_cursor_pos <= max_linelen:
             return(line)
 
         # Split the line into a list of words, where ruby groups count

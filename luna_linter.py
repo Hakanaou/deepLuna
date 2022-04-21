@@ -322,7 +322,7 @@ class LintPageOverflow:
             for cmd in page:
                 # For glued lines, erase the trailing \n on the line before
                 if cmd.is_glued:
-                    page_text = page_text[:-1] + self._text_map[cmd.offset]
+                    page_text = page_text[:-2] + self._text_map[cmd.offset]
                 else:
                     page_text += self._text_map[cmd.offset]
 
