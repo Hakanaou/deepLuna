@@ -193,6 +193,7 @@ class LintAmericanSpelling:
         'marvelled': 'marveled',
         'marvelling': 'marveling',
         'ageing': 'aging',
+        'judgement': 'judgment',
     }
 
     def alpha_only(self, word):
@@ -486,6 +487,40 @@ class LintUnspacedRuby:
         return errors
 
 
+class LintDupedWord:
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+
+                line = RubyUtils.remove_ruby_text(
+                    RubyUtils.apply_control_codes(line)
+                ).replace('\n', ' ')
+                words = line.split(' ')
+                for i in range(len(words)-1):
+                    if not words[i]:
+                        continue
+                    word_same = words[i] == words[i + 1]
+                    word_punctuated = (
+                        words[i][-1] == '.' or
+                        words[i][-1] == ','
+                    )
+                    if word_same and not word_punctuated:
+                        errors.append(LintResult(
+                            self.__class__.__name__,
+                            scene_name,
+                            page[0],
+                            line,
+                            f"Word '{words[i]}' doubled up"
+                        ))
+
+        return errors
+
+
 def paginate(script_cmds):
     pages = []
     page_acc = []
@@ -644,6 +679,7 @@ def main():
         LintChoiceLeadingSpace(),
         LintPageOverflow(tl_db),
         LintNameMisspellings(),
+        LintDupedWord(),
     ]
 
     # Iterate each scene
