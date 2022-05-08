@@ -507,6 +507,8 @@ class LintDupedWord:
                     word_same = words[i] == words[i + 1]
                     word_punctuated = (
                         words[i][-1] == '.' or
+                        words[i][-1] == '?' or
+                        words[i][-1] == '!' or
                         words[i][-1] == ','
                     )
                     if word_same and not word_punctuated:
