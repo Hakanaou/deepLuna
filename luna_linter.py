@@ -200,6 +200,10 @@ class LintAmericanSpelling:
         'endeavour': 'endeavor',
         'harbour': 'harbor',
         'cancelling': 'canceling',
+        'furore': 'furor',
+        'saviour': 'savior',
+        'revelled': 'reveled',
+        'cancelled': 'canceled',
     }
 
     def alpha_only(self, word):
