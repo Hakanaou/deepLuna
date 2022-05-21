@@ -194,6 +194,11 @@ class LintAmericanSpelling:
         'marvelling': 'marveling',
         'ageing': 'aging',
         'judgement': 'judgment',
+        'counsellor': 'counselor',
+        'counselling': 'counseling',
+        'jeez': 'geez',
+        'endeavour': 'endeavor',
+        'harbour': 'harbor',
     }
 
     def alpha_only(self, word):
