@@ -199,6 +199,7 @@ class LintAmericanSpelling:
         'jeez': 'geez',
         'endeavour': 'endeavor',
         'harbour': 'harbor',
+        'cancelling': 'canceling',
     }
 
     def alpha_only(self, word):
