@@ -577,11 +577,15 @@ def report_results(lint_results):
 
     for result in lint_results:
         indent = "\t" if (result.line and result.line[0] != '\t') else ""
+        # Replace all PUA characters with normal ones for readability
+        printable_line = ''.join([
+            (c if ord(c) < 0xE000 else chr(ord(c) % 128)) for c in result.line
+        ])
         print(
             Color(Color.RED)(
                 f"{result.linter}: {result.filename}: {result.page}\n") +
             f"{indent}" +
-            Color(Color.YELLOW)(f"{result.line}\n") +
+            Color(Color.YELLOW)(f"{printable_line}\n") +
             Color(Color.CYAN)(f"\t{result.message}\n")
         )
 
