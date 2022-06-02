@@ -166,16 +166,13 @@ class RubyUtils:
                     processed_line += ""
                 elif cc_acc == 'i':
                     # Offset ascii glyphs into the italic text region
-                    # glyph_offset = PUA_OFFSET + 128 * 0
-                    glyph_offset = None
+                    glyph_offset = PUA_OFFSET + 128 * 0
                 elif cc_acc == 'r':
                     # Offset ascii glyphs into the reverso text region
-                    # glyph_offset = PUA_OFFSET + 128 * 1
-                    glyph_offset = None
+                    glyph_offset = PUA_OFFSET + 128 * 1
                 elif cc_acc == 'ri':
                     # Offset ascii glyphs into the reversed italics text region
-                    # glyph_offset = PUA_OFFSET + 128 * 2
-                    glyph_offset = None
+                    glyph_offset = PUA_OFFSET + 128 * 2
                 elif cc_acc == '/i' or cc_acc == "/r" or cc_acc == "/ri":
                     glyph_offset = None
                 else:
