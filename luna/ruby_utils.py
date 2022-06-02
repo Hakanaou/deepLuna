@@ -4,7 +4,11 @@ class RubyUtils:
         # Any non-ASCII character takes up 2 spaces instead of one.
         length = 0
         for c in string:
-            if ord(c) > 128:
+            # PUA codes are treated as single-width
+            if ord(c) >= 0xE000:
+                length += 1
+            # All non-ASCII is double-wide
+            elif ord(c) > 128:
                 length += 2
             else:
                 length += 1
