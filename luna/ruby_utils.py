@@ -1,4 +1,7 @@
 class RubyUtils:
+
+    ENABLE_PUA_CODES = True
+
     @staticmethod
     def unicode_aware_len(string):
         # Any non-ASCII character takes up 2 spaces instead of one.
@@ -113,8 +116,8 @@ class RubyUtils:
 
         return ret
 
-    @staticmethod
-    def apply_control_codes(text):
+    @classmethod
+    def apply_control_codes(cls, text):
         # Convert any custom control codes into the appropriate
         # characters/control modes.
         #
@@ -170,13 +173,16 @@ class RubyUtils:
                     processed_line += ""
                 elif cc_acc == 'i':
                     # Offset ascii glyphs into the italic text region
-                    glyph_offset = PUA_OFFSET + 128 * 0
+                    if cls.ENABLE_PUA_CODES:
+                        glyph_offset = PUA_OFFSET + 128 * 0
                 elif cc_acc == 'r':
                     # Offset ascii glyphs into the reverso text region
-                    glyph_offset = PUA_OFFSET + 128 * 1
+                    if cls.ENABLE_PUA_CODES:
+                        glyph_offset = PUA_OFFSET + 128 * 1
                 elif cc_acc == 'ri':
                     # Offset ascii glyphs into the reversed italics text region
-                    glyph_offset = PUA_OFFSET + 128 * 2
+                    if cls.ENABLE_PUA_CODES:
+                        glyph_offset = PUA_OFFSET + 128 * 2
                 elif cc_acc == '/i' or cc_acc == "/r" or cc_acc == "/ri":
                     glyph_offset = None
                 else:
