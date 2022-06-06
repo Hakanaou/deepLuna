@@ -331,11 +331,18 @@ class LintPageOverflow:
             # Consolidate the page text into one string
             page_text = ""
             for cmd in page:
+                # Fetch the matching string
+                line = self._text_map[cmd.offset]
+
+                # Remove any game control codes from the front of the string
+                while line[0] == '@':
+                    line = line[2:]
+
                 # For glued lines, erase the trailing \n on the line before
                 if cmd.is_glued:
-                    page_text = page_text[:-2] + self._text_map[cmd.offset]
+                    page_text = page_text[:-2] + line
                 else:
-                    page_text += self._text_map[cmd.offset]
+                    page_text += line
 
             # Don't count the trailing newline
             page_text = page_text.rstrip()
