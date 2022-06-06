@@ -7,6 +7,7 @@ import time
 
 from luna.constants import Constants
 from luna.translation_db import TranslationDb
+from luna.ruby_utils import RubyUtils
 
 
 class Color:
@@ -93,6 +94,12 @@ def parse_args():
         dest='inject_output',
         action='store',
         help="Output path for the injected script text"
+    )
+    parser.add_argument(
+        '--enable-pua',
+        dest='enable_pua',
+        action='store_true',
+        help="Enable font effects using PUA code region"
     )
 
     parser.add_argument(
@@ -317,6 +324,10 @@ def main():
         perform_import(tl_db, args)
     if args.legacy_import_path:
         perform_legacy_import(tl_db, args)
+
+    # Use PUA?
+    if args.enable_pua:
+        RubyUtils.ENABLE_PUA_CODES = True
 
     # Inject anything?
     if args.do_inject:

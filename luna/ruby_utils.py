@@ -1,6 +1,6 @@
 class RubyUtils:
 
-    ENABLE_PUA_CODES = True
+    ENABLE_PUA_CODES = False
 
     @staticmethod
     def unicode_aware_len(string):
