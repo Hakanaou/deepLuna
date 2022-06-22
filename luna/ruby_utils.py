@@ -193,9 +193,10 @@ class RubyUtils:
 
             # Non-control mode: just append character to output buffer
             if not in_cc:
-                # If we have a glyph offset and this is an ASCII char,
-                # map it to the right font region
-                if glyph_offset and ord(c) < 128:
+                # If we have a glyph offset and this is a non-whitespace ASCII
+                # char, map it to the right font region
+                is_whitespace = c == ' ' or c == '\n'
+                if glyph_offset and ord(c) < 128 and not is_whitespace:
                     processed_line += chr(ord(c) + glyph_offset)
                 else:
                     processed_line += c
