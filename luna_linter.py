@@ -58,7 +58,7 @@ class LintNameMisspellings:
 
     BASE_NAMES = [
         "Akiha",
-        "Ando",
+        "Andou",
         "Aoko",
         "Arach",
         "Arcueid",
@@ -83,8 +83,6 @@ class LintNameMisspellings:
     ]
 
     TYPO_EXCLUDE = set([
-        'And',   # Triggers false positives on Ando
-        'undo',  # Triggers false positives on Ando
         'Miss',  # Triggers false positives on Mio
     ])
 
