@@ -117,7 +117,7 @@ class RubyUtils:
         return ret
 
     @classmethod
-    def apply_control_codes(cls, text):
+    def apply_control_codes(cls, text, enable_asserts=False):
         # Convert any custom control codes into the appropriate
         # characters/control modes.
         #
@@ -173,17 +173,27 @@ class RubyUtils:
                     processed_line += ""
                 elif cc_acc == 'i':
                     # Offset ascii glyphs into the italic text region
+                    assert not enable_asserts or glyph_offset is None, \
+                        f"Illegal nested i in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 0
                 elif cc_acc == 'r':
                     # Offset ascii glyphs into the reverso text region
+                    assert not enable_asserts or glyph_offset is None, \
+                            f"Illegal nested r in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 1
                 elif cc_acc == 'ri':
                     # Offset ascii glyphs into the reversed italics text region
+                    assert not enable_asserts or glyph_offset is None, \
+                        f"Illegal nested ri in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 2
                 elif cc_acc == '/i' or cc_acc == "/r" or cc_acc == "/ri":
+                    is_in_tag = \
+                        not cls.ENABLE_PUA_CODES or glyph_offset is not None
+                    assert not enable_asserts or is_in_tag, \
+                        f"Unmatched closing tag {cc_acc} in line {text}"
                     glyph_offset = None
                 else:
                     assert False, \
@@ -203,6 +213,9 @@ class RubyUtils:
             else:
                 # CC mode: accumulate cc chars until cc end
                 cc_acc += c
+
+        assert not enable_asserts or glyph_offset is None, \
+            f"Unclosed tag on line {text}"
 
         return processed_line
 
