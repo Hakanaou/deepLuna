@@ -10,6 +10,8 @@ from luna.translation_db import TranslationDb
 from luna.constants import Constants
 from luna.ruby_utils import RubyUtils
 
+RubyUtils.ENABLE_PUA_CODES = True
+
 
 class Color:
     RED = '\033[31m'
@@ -261,6 +263,32 @@ class LintUnclosedQuotes:
                     '\n'.join(f"\t> {line}" for line, _comment in page),
                     f"Found odd number of quotes ({quote_count})"
                 ))
+
+        return errors
+
+
+class LintBrokenFormatting:
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+
+                try:
+                    RubyUtils.apply_control_codes(
+                        line, enable_asserts=True)
+                except AssertionError as e:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page[0],
+                        line,
+                        e.args[0]
+                    ))
 
         return errors
 
@@ -586,12 +614,15 @@ def report_results(lint_results):
         printable_line = ''.join([
             (c if ord(c) < 0xE000 else chr(ord(c) % 128)) for c in result.line
         ])
+        printable_message = ''.join([
+            (c if ord(c) < 0xE000 else chr(ord(c) % 128)) for c in result.message
+        ])
         print(
             Color(Color.RED)(
                 f"{result.linter}: {result.filename}: {result.page}\n") +
             f"{indent}" +
             Color(Color.YELLOW)(f"{printable_line}\n") +
-            Color(Color.CYAN)(f"\t{result.message}\n")
+            Color(Color.CYAN)(f"\t{printable_message}\n")
         )
 
     # Tally total hits for each linter
@@ -701,6 +732,7 @@ def main():
         LintPageOverflow(tl_db),
         LintNameMisspellings(),
         LintDupedWord(),
+        LintBrokenFormatting(),
     ]
 
     # Iterate each scene
