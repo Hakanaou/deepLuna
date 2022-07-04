@@ -471,6 +471,37 @@ class LintDanglingCommas:
         return errors
 
 
+class LintEllipses:
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+
+                # Test lines for non-multiple-of-three periods
+                consecutive_dots = 0
+                for c in line:
+                    if c == '.':
+                        consecutive_dots += 1
+                    if c != '.':
+                        if consecutive_dots > 1 and consecutive_dots % 3 != 0:
+                            errors.append(LintResult(
+                                self.__class__.__name__,
+                                scene_name,
+                                page[0],
+                                line,
+                                "Non-multiple-of-three ellipsis"
+                            ))
+                        consecutive_dots = 0
+
+        return errors
+
+
 class LintVerbotenUnicode:
     VERBOTEN = {
         '　': ' ',
@@ -733,6 +764,7 @@ def main():
         LintNameMisspellings(),
         LintDupedWord(),
         LintBrokenFormatting(),
+        LintEllipses(),
     ]
 
     # Iterate each scene
