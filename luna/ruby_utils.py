@@ -126,6 +126,7 @@ class RubyUtils:
         # %{i}/%{/i}: Begin/end italics
         # %{r}/%{/r}: Begin/end reverse
         # %{ri}/%{/ri}: Begin/end reverse italics
+        # %{g}/%{/g}: Begin/end Antiqua font
         PUA_OFFSET = 0xE000
 
         processed_line = ""
@@ -189,7 +190,13 @@ class RubyUtils:
                         f"Illegal nested ri in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 2
-                elif cc_acc == '/i' or cc_acc == "/r" or cc_acc == "/ri":
+                elif cc_acc == 'g':
+                    # Offset ascii glyphs into the antiqua region
+                    assert not enable_asserts or glyph_offset is None, \
+                        f"Illegal nested g in line {text}"
+                    if cls.ENABLE_PUA_CODES:
+                        glyph_offset = PUA_OFFSET + 128 * 3
+                elif cc_acc[0] == '/':
                     is_in_tag = \
                         not cls.ENABLE_PUA_CODES or glyph_offset is not None
                     assert not enable_asserts or is_in_tag, \
