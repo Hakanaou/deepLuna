@@ -471,6 +471,37 @@ class LintDanglingCommas:
         return errors
 
 
+class LintConsistency:
+
+    def __init__(self):
+        # Compile regex for consistency check pragmas
+        self._regex = re.compile(r'LintConsistency:(\d+)')
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+
+        for page in pages:
+            for line, comment in page:
+                if not line or not comment:
+                    continue
+
+                # Check each referenced consistency point is in fact consistent
+                for offset in self._regex.findall(comment):
+                    other_jp_hash = db.tl_line_for_offset(int(offset))
+                    other_line = db.tl_line_with_hash(other_jp_hash)
+
+                    if other_line.en_text != line:
+                        errors.append(LintResult(
+                            self.__class__.__name__,
+                            scene_name,
+                            page[0],
+                            line,
+                            f"Line not consistent with offset {offset}:\n"
+                            f"\t{other_line.en_text}"
+                        ))
+
+        return errors
+
 class LintEllipses:
 
     def __call__(self, db, scene_name, pages):
@@ -765,6 +796,7 @@ def main():
         LintDupedWord(),
         LintBrokenFormatting(),
         LintEllipses(),
+        LintConsistency(),
     ]
 
     # Iterate each scene
