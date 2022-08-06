@@ -274,8 +274,10 @@ class TranslationDb:
                     cursor_position = RubyUtils.noruby_len(final_broken_line)
                 else:
                     cursor_position += RubyUtils.noruby_len(final_broken_line)
-                    cursor_position = \
-                        cursor_position % Constants.CHARS_PER_LINE
+
+                # Wrap the cursor position if necessary
+                cursor_position = \
+                    cursor_position % Constants.CHARS_PER_LINE
 
                 # Test to see if the next line is glued
                 if cmd_offset + 1 < len(scene_commands):
