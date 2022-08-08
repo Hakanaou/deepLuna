@@ -205,7 +205,7 @@ class LinebreakTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             db.generate_linebroken_text_map()
 
-    def test_glued_exact_space(self):
+    def test_glued_broken_exact_space(self):
         lines = [
             TranslationDb.TLLine(
                 "jp0",
@@ -224,6 +224,29 @@ class LinebreakTests(unittest.TestCase):
         expect = {
             0: "Until then, I'll let you off the hook. Please make an\n"
                "honest effort to refrain from any dangerous activities.\n",
+            1: 'Please be advised that the next time I see you,',
+        }
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)
+
+    def test_glued_nonbroken_exact_space(self):
+        lines = [
+            TranslationDb.TLLine(
+                "jp0",
+                "honest effort to refrain from any dangerous activities."
+            ),
+            TranslationDb.TLLine(
+                "jp1",
+                " Please be advised that the next time I see you,"
+            ),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+            TranslationDb.TextCommand(1, lines[1].content_hash(), 0, is_glued=True),
+        ]
+        db = self.mock_db(lines, cmds)
+        expect = {
+            0: "honest effort to refrain from any dangerous activities.\n",
             1: 'Please be advised that the next time I see you,',
         }
         result = db.generate_linebroken_text_map()
