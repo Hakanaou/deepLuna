@@ -251,7 +251,9 @@ class TranslationDb:
                     # Need to strip the padding \r\n from lines
                     prev_broken_line = offset_to_string[
                         prev_cmd.offset].replace("\r\n", "")
-                    if prev_broken_line[-1] == '\n' and coded_text[0] == ' ':
+                    if prev_broken_line and \
+                       prev_broken_line[-1] == '\n' and \
+                       coded_text[0] == ' ':
                         coded_text = coded_text[1:]
 
                 # Break the text, unless this is a QA scene in which case
