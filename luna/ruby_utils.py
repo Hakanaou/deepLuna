@@ -1,3 +1,5 @@
+from luna.constants import Constants
+
 class RubyUtils:
 
     ENABLE_PUA_CODES = False
@@ -123,6 +125,7 @@ class RubyUtils:
         #
         # %{n}: Force newline
         # %{s}: Force space
+        # %{center}: Attempt to center text in-line
         # %{i}/%{/i}: Begin/end italics
         # %{r}/%{/r}: Begin/end reverse
         # %{ri}/%{/ri}: Begin/end reverse italics
@@ -134,6 +137,7 @@ class RubyUtils:
         in_cc = False  # Are we inside a control code segment
         cc_acc = ""
         glyph_offset = None
+        should_center = False
         for c in text:
             # Handle control mode entry
             if c == '%':
@@ -166,6 +170,9 @@ class RubyUtils:
                 elif cc_acc == 's':
                     # Forced space
                     processed_line += " "
+                elif cc_acc == 'center':
+                    # Try and center this afterwards
+                    should_center = True
                 elif cc_acc == 'nothing':
                     # Used as a token to allow empty lines
                     processed_line += ""
@@ -223,6 +230,20 @@ class RubyUtils:
 
         assert not enable_asserts or glyph_offset is None, \
             f"Unclosed tag on line {text}"
+
+        # If this line is supposed to be centered, try and do it now.
+        if should_center:
+            # If the line doesn't fit, complain
+            assert '\n' not in processed_line
+            assert cls.noruby_len(processed_line) <= Constants.CHARS_PER_LINE
+
+            # How many chars are we short by?
+            padding_chars = int((
+                Constants.CHARS_PER_LINE - cls.noruby_len(processed_line)
+            ) / 2)
+
+            # Pad the front with spaces to center-align
+            processed_line = (' '  * padding_chars) + processed_line
 
         return processed_line
 
