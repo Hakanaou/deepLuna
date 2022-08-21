@@ -10,8 +10,8 @@ class RubyUtils:
             # PUA codes are treated as single-width
             if ord(c) >= 0xE000:
                 length += 1
-            # All non-ASCII is double-wide
-            elif ord(c) > 128:
+            # All non-EASCII is double-wide
+            elif ord(c) > 256:
                 length += 2
             else:
                 length += 1
