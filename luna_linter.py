@@ -213,6 +213,7 @@ class LintAmericanSpelling:
         'street light': 'streetlight',
         'towards': 'toward',
         'travelling': 'traveling',
+        'travelled': 'traveled',
         'woah': 'whoa',
     }
 
