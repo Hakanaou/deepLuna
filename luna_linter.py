@@ -247,6 +247,27 @@ class LintAmericanSpelling:
         return errors
 
 
+class LintInterrobang:
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+                if '!?' in line:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page[0],
+                        line,
+                        "Replace '!?' with '?!'"
+                    ))
+
+        return errors
+
+
 class LintUnclosedQuotes:
     def __call__(self, db, scene_name, pages):
         # For each page, just do a dumb check that the quote count is matched
@@ -808,6 +829,7 @@ def main():
         LintBrokenFormatting(),
         LintEllipses(),
         LintConsistency(),
+        LintInterrobang(),
     ]
 
     # Iterate each scene
