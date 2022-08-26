@@ -154,6 +154,8 @@ class LintNameMisspellings:
 class LintAmericanSpelling:
 
     BRIT_TO_YANK = {
+        'absent-mindedly': 'absentmindedly',
+        'absentminded': 'absent-minded',
         'afterwards': 'afterward',
         'ageing': 'aging',
         'anyways': 'anyway',
@@ -176,9 +178,11 @@ class LintAmericanSpelling:
         'favourite': 'favorite',
         'focussed': 'focused',
         'focussing': 'focusing',
+        'forwards': 'forward',
         'fulfil': 'fulfill',
         'fulfilment': 'fulfillment',
         'furore': 'furor',
+        'hand-made': 'handmade',
         'harbour': 'harbor',
         'honour': 'honor',
         'honours': 'honors',
@@ -187,6 +191,9 @@ class LintAmericanSpelling:
         'leaped': 'leapt',  # Exception since leaped looks dumb
         'licence': 'license',
         'licence': 'license',
+        'light-hearted': 'lighthearted',
+        'lightheaded': 'light-headed',
+        'lightheadedness': 'light-headedness',
         'marvelled': 'marveled',
         'marvelling': 'marveling',
         'mobile phone': 'cell phone',
@@ -200,17 +207,21 @@ class LintAmericanSpelling:
         'rumours': 'rumors',
         'saviour': 'savior',
         'self-defence': 'self-defense',
+        'self-defence': 'self-defense',
         'speciality': 'specialty',
+        'spiralling': 'spiraling',
         'street light': 'streetlight',
         'towards': 'toward',
+        'travelling': 'traveling',
         'woah': 'whoa',
     }
 
-    def alpha_only(self, word):
+    def strip_irrelevant_punct(self, word):
         return ''.join([
             c for c in word
             if (c >= 'A' and c <= 'Z')
             or (c >= 'a' and c <= 'z')
+            or c in '-'
         ])
 
     def __call__(self, db, scene_name, pages):
@@ -222,7 +233,7 @@ class LintAmericanSpelling:
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
                 for raw_word in line.split(' '):
-                    word = self.alpha_only(raw_word)
+                    word = self.strip_irrelevant_punct(raw_word)
                     if word.lower() in self.BRIT_TO_YANK:
                         subs = self.BRIT_TO_YANK[word.lower()]
                         errors.append(LintResult(
