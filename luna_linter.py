@@ -562,6 +562,16 @@ class LintEllipses:
                             ))
                         consecutive_dots = 0
 
+                # Handle end-of-line case
+                if consecutive_dots > 1 and consecutive_dots % 3 != 0:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page[0],
+                        line,
+                        "Non-multiple-of-three ellipsis"
+                    ))
+
         return errors
 
 
