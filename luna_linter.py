@@ -248,6 +248,32 @@ class LintAmericanSpelling:
         return errors
 
 
+class LintBannedPhrases:
+    BANNED_PHRASES = {
+        'curry bread': 'curry bun',
+    }
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+                for find, replace in self.BANNED_PHRASES.items():
+                    if find in line.lower():
+                        errors.append(LintResult(
+                            self.__class__.__name__,
+                            scene_name,
+                            page[0],
+                            line,
+                            f"Replace '{find}' with '{replace}'"
+                        ))
+
+        return errors
+
+
 class LintInterrobang:
     def __call__(self, db, scene_name, pages):
         errors = []
@@ -841,6 +867,7 @@ def main():
         LintEllipses(),
         LintConsistency(),
         LintInterrobang(),
+        LintBannedPhrases(),
     ]
 
     # Iterate each scene
