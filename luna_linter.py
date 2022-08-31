@@ -95,9 +95,20 @@ class LintNameMisspellings:
         # Note that ' is stripped, so posessive and plurals are both covered by
         # the postfix 's'
         self._names = set()
+        self._name_freqmaps = {}
         for name in self.BASE_NAMES:
             self._names.add(name)
             self._names.add(name + 's')
+
+        for name in self._names:
+            self._name_freqmaps[name] = self.make_freqmap(name)
+
+    def make_freqmap(self, word):
+        ret = {}
+        for char in word:
+            ret[char] = ret.get(char, 0) + 1
+
+        return ret
 
     def depunctuate(self, word):
         return ''.join([
@@ -137,9 +148,21 @@ class LintNameMisspellings:
                     if word in self._names or word in self.TYPO_EXCLUDE:
                         continue
 
+                    # Check edit distance
                     for name in self._names:
-
                         if Levenshtein.distance(word, name) < self.NAME_THRESH:
+                            errors.append(LintResult(
+                                self.__class__.__name__,
+                                scene_name,
+                                page[0],
+                                line,
+                                f"Is '{word}' supposed to be '{name}'"
+                            ))
+
+                    # Check transpositions
+                    word_freqmap = self.make_freqmap(word)
+                    for name, freqmap in self._name_freqmaps.items():
+                        if word_freqmap == freqmap:
                             errors.append(LintResult(
                                 self.__class__.__name__,
                                 scene_name,
