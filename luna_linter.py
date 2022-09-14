@@ -275,8 +275,18 @@ class LintAmericanSpelling:
 
 
 class LintBannedPhrases:
+    # Map of (search, case_sensitive) -> replace
     BANNED_PHRASES = {
-        'curry bread': 'curry bun',
+        ('curry bread', False): 'curry bun',
+        ('head to head', False): 'head-to-head',
+
+        # Need to handle sentence start explicitly on these since we're case-sen
+        ('what on Earth', True): 'what on earth',
+        ('What on Earth', True): 'What on earth',
+        ('how on Earth', True): 'how on earth',
+        ('How on Earth', True): 'How on earth',
+        ('down to Earth', True): 'down to earth',
+        ('Down to Earth', True): 'Down to earth',
     }
 
     def __call__(self, db, scene_name, pages):
@@ -287,14 +297,16 @@ class LintBannedPhrases:
                     continue
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
-                for find, replace in self.BANNED_PHRASES.items():
-                    if find in line.lower():
+                lower_line = line.lower()
+                for findspec, replace in self.BANNED_PHRASES.items():
+                    needle, case_sensitive = findspec
+                    if needle in (line if case_sensitive else lower_line):
                         errors.append(LintResult(
                             self.__class__.__name__,
                             scene_name,
                             page[0],
                             line,
-                            f"Replace '{find}' with '{replace}'"
+                            f"Replace '{needle}' with '{replace}'"
                         ))
 
         return errors
