@@ -189,6 +189,7 @@ class LintAmericanSpelling:
         'behaviours': 'behaviors',
         'cancelled': 'canceled',
         'cancelling': 'canceling',
+        'cliche': 'cliché',
         'colour': 'color',
         'colours': 'colors',
         'counselling': 'counseling',
@@ -220,6 +221,8 @@ class LintAmericanSpelling:
         'marvelled': 'marveled',
         'marvelling': 'marveling',
         'mobile phone': 'cell phone',
+        'naive': 'naïve',
+        'naivete': 'naïveté',
         'neighbouring': 'neighboring',
         'neighbouring': 'neighboring',
         'offence': 'offense',
@@ -235,8 +238,8 @@ class LintAmericanSpelling:
         'spiralling': 'spiraling',
         'street light': 'streetlight',
         'towards': 'toward',
-        'travelling': 'traveling',
         'travelled': 'traveled',
+        'travelling': 'traveling',
         'woah': 'whoa',
     }
 
