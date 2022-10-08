@@ -74,6 +74,7 @@ class LintNameMisspellings:
         "Makihisa",
         "Mario",
         "Mio",
+        "Narbareck",
         "Noel",
         "Roa",
         "Saiki",
@@ -390,7 +391,11 @@ class LintBrokenFormatting:
         return errors
 
 
-class LintChoiceLeadingSpace:
+class LintChoices:
+
+    # Full line is 55 chars, subtract 2 for choice number
+    MAX_CHOICE_LEN = 53
+
     def __call__(self, db, scene_name, pages):
         errors = []
 
@@ -414,6 +419,21 @@ class LintChoiceLeadingSpace:
                     cmd.page_number,
                     line.en_text,
                     "Choice text must begin with leading space"
+                ))
+
+            # Too long?
+            # Auto-ignore this one if it's the last choice in the scene, in
+            # which case it doesn't overflow onto anything
+            is_last_choice = cmd == choice_cmds[-1]
+            line_len = RubyUtils.noruby_len(line.en_text)
+            is_overlong = line_len > self.MAX_CHOICE_LEN
+            if not is_last_choice and is_overlong:
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    cmd.page_number,
+                    line.en_text,
+                    f"Choice too long, must be < {self.MAX_CHOICE_LEN} chars"
                 ))
 
         return errors
@@ -897,7 +917,7 @@ def main():
         LintVerbotenUnicode(),
         LintUnspacedRuby(),
         LintTranslationHoles(),
-        LintChoiceLeadingSpace(),
+        LintChoices(),
         LintPageOverflow(tl_db),
         LintNameMisspellings(),
         LintDupedWord(),
