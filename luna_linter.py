@@ -425,7 +425,8 @@ class LintChoices:
             # Auto-ignore this one if it's the last choice in the scene, in
             # which case it doesn't overflow onto anything
             is_last_choice = cmd == choice_cmds[-1]
-            line_len = RubyUtils.noruby_len(line.en_text)
+            line_len = RubyUtils.noruby_len(
+                RubyUtils.apply_control_codes(line.en_text))
             is_overlong = line_len > self.MAX_CHOICE_LEN
             if not is_last_choice and is_overlong:
                 errors.append(LintResult(
