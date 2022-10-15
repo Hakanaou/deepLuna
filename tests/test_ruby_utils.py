@@ -79,3 +79,19 @@ class LinebreakTests(unittest.TestCase):
         in_str = '"'
         out_str = RubyUtils.linebreak_text(in_str, 55, 54)
         self.assertEqual(in_str, out_str)
+
+    def test_linebreak_stupidly_long_word(self):
+        in_str = (
+            "Haa...haaaaaa, gyarghhhhhhhhhh?! "
+            "Sto, stop, I'm sorry, so sorry, I apologize, I apologize, so "
+            "pleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "aaaaoaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaase!"
+        )
+        expect_str = (
+            "Haa...haaaaaa, gyarghhhhhhhhhh?! Sto, stop, I'm sorry,\n"
+            "so sorry, I apologize, I apologize, so pleaaaaaaaaaaaaa\n"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaoaaaa\n"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaase!"
+        )
+        out_str = RubyUtils.linebreak_text(in_str, 55)
+        self.assertEqual(expect_str, out_str)

@@ -257,16 +257,34 @@ class RubyUtils:
         # as a single word
         splitLine = cls.ruby_aware_split_words(line)
 
-        # If the length of the longest element in the line is larger than our
-        # allotted limit, we can't break this line
-        if max_linelen < max([cls.noruby_len(elem) for elem in splitLine]):
-            return(line)
-
         # Actually break up the line
         broken_lines = []
         acc = ""
         first_word = True
         for word in splitLine:
+            # Is the next word so long that it's literally impossible to break?
+            if cls.noruby_len(word) > max_linelen:
+                # If it is, then just jam newlines into the word so that the
+                # game doesn't pitch a fit
+                while word:
+                    # How many more chars can we get on this line
+                    chars_remaining = max_linelen - cls.noruby_len(acc + ' ')
+
+                    # Stick those on the accumulator, and break the line
+                    if acc:
+                        acc += ' ' + word[:chars_remaining]
+                    else:
+                        acc = word[:chars_remaining]
+                    broken_lines.append(acc)
+                    acc = ""
+                    start_cursor_pos = 0
+
+                    # Strip them from the start of the word and loop
+                    word = word[chars_remaining:]
+
+                # We're done handling this word, loop.
+                continue
+
             # If adding the next word would overflow, break the line.
             len_if_added = cls.noruby_len(acc + ' ' + word) + start_cursor_pos
             if len_if_added > max_linelen:
