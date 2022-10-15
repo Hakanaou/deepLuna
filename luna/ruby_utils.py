@@ -23,13 +23,11 @@ class RubyUtils:
     @classmethod
     def noruby_len(cls, line):
         # Get the length of a line as if it did not contain any ruby text
-        try:
-            return cls.unicode_aware_len(cls.remove_ruby_text(line))
-        except AssertionError as e:
-            # There are non-conformant lines in the current script.
-            # Fail gracefully
-            print(e)
-            return cls.unicode_aware_len(line)
+        return cls.unicode_aware_len(cls.remove_ruby_text(line))
+
+    @staticmethod
+    def contains_ruby(line):
+        return '<' in line or '>' in line
 
     @staticmethod
     def ruby_aware_split_words(line):
@@ -264,6 +262,11 @@ class RubyUtils:
         for word in splitLine:
             # Is the next word so long that it's literally impossible to break?
             if cls.noruby_len(word) > max_linelen:
+                # Is it unbreakable but _also_ a ruby'd line?
+                if cls.contains_ruby(word):
+                    assert False, \
+                        f"Cannot linebreak ruby '{word}' in line '{line}'"
+
                 # If it is, then just jam newlines into the word so that the
                 # game doesn't pitch a fit
                 while word:
