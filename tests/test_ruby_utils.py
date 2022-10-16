@@ -90,8 +90,8 @@ class LinebreakTests(unittest.TestCase):
         expect_str = (
             "Haa...haaaaaa, gyarghhhhhhhhhh?! Sto, stop, I'm sorry,\n"
             "so sorry, I apologize, I apologize, so pleaaaaaaaaaaaaa\n"
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaoaaaa\n"
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaase!"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaoaaaaa\n"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaase!"
         )
         out_str = RubyUtils.linebreak_text(in_str, 55)
         self.assertEqual(expect_str, out_str)

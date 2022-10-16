@@ -271,7 +271,11 @@ class RubyUtils:
                 # game doesn't pitch a fit
                 while word:
                     # How many more chars can we get on this line
-                    chars_remaining = max_linelen - cls.noruby_len(acc + ' ')
+                    chars_remaining = (
+                        max_linelen - cls.noruby_len(acc + ' ')
+                        if acc
+                        else max_linelen
+                    )
 
                     # Stick those on the accumulator, and break the line
                     if acc:
