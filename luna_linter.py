@@ -196,6 +196,7 @@ class LintAmericanSpelling:
         'counselling': 'counseling',
         'counsellor': 'counselor',
         'defence': 'defense',
+        'defenceless': 'defenseless',
         'demeanour': 'demeanor',
         'endeavour': 'endeavor',
         'favour': 'favor',
@@ -224,6 +225,7 @@ class LintAmericanSpelling:
         'mobile phone': 'cell phone',
         'naive': 'naïve',
         'naivete': 'naïveté',
+        'neighbourhood': 'neighborhood',
         'neighbouring': 'neighboring',
         'neighbouring': 'neighboring',
         'offence': 'offense',
@@ -241,6 +243,7 @@ class LintAmericanSpelling:
         'towards': 'toward',
         'travelled': 'traveled',
         'travelling': 'traveling',
+        'washroom': 'bathroom',
         'woah': 'whoa',
     }
 
