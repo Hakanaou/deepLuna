@@ -283,6 +283,7 @@ class LintBannedPhrases:
     BANNED_PHRASES = {
         ('curry bread', False): 'curry bun',
         ('head to head', False): 'head-to-head',
+        ('pile driver', False): 'pile bunker',
 
         # Need to handle sentence start explicitly on these since we're case-sen
         ('what on Earth', True): 'what on earth',
