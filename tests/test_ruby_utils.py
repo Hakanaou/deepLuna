@@ -5,6 +5,10 @@ from luna.ruby_utils import RubyUtils
 
 class LinebreakTests(unittest.TestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.maxDiff = None
+
     @staticmethod
     def break_text(text):
         return RubyUtils.linebreak_text(
@@ -92,6 +96,18 @@ class LinebreakTests(unittest.TestCase):
             "so sorry, I apologize, I apologize, so pleaaaaaaaaaaaaa\n"
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaoaaaaa\n"
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaase!"
+        )
+        out_str = RubyUtils.linebreak_text(in_str, 55)
+        self.assertEqual(expect_str, out_str)
+
+    def test_linebreak_different_stupidly_long_sentence(self):
+        in_str = '"Arghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh!!!!! Sto, stop, stoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooop! Aghrhhhh, gharkkkkkkkkkkkkkkkkkkkkkkkkkkk!!!!"'
+        expect_str = (
+            '"Arghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\n'
+            'hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh!!!!! Sto, stop, stoo\n'
+            'ooooooooooooooooooooooooooooooooooooooooooooooooooooooo\n'
+            'ooooooooooooooooooop! Aghrhhhh,\n'
+            'gharkkkkkkkkkkkkkkkkkkkkkkkkkkk!!!!"'
         )
         out_str = RubyUtils.linebreak_text(in_str, 55)
         self.assertEqual(expect_str, out_str)

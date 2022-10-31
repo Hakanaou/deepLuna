@@ -277,14 +277,18 @@ class RubyUtils:
                         else max_linelen
                     )
 
-                    # Stick those on the accumulator, and break the line
+                    # Stick those on the accumulator
                     if acc:
                         acc += ' ' + word[:chars_remaining]
                     else:
                         acc = word[:chars_remaining]
-                    broken_lines.append(acc)
-                    acc = ""
-                    start_cursor_pos = 0
+
+                    # If this filled the line, break it
+                    if cls.noruby_len(acc) >= max_linelen:
+                        broken_lines.append(acc)
+                        acc = ""
+                        start_cursor_pos = 0
+                        first_word = False
 
                     # Strip them from the start of the word and loop
                     word = word[chars_remaining:]
