@@ -610,7 +610,11 @@ class LintConsistency:
                 # Check each referenced consistency point is in fact consistent
                 for offset in self._regex.findall(comment):
                     other_jp_hash = db.tl_line_for_offset(int(offset))
-                    other_line = db.tl_line_with_hash(other_jp_hash)
+
+                    # Need to make sure that we handle overrides correctly,
+                    # since fetching those by hash won't work
+                    other_line = db.tl_override_for_offset(int(offset)) or \
+                        db.tl_line_with_hash(other_jp_hash)
 
                     if other_line.en_text != line:
                         errors.append(LintResult(
