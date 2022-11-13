@@ -216,7 +216,7 @@ class ReadableExporter:
                             f"Invalid character '{c}' in "
                             f"offset on line {line_counter}"
                         )
-                if active_block_is_offset_override:
+                if not active_block_is_offset_override:
                     # All content hashes must be valid lowercase hex
                     if c not in '0123456789abcdef':
                         raise cls.ParseError(
