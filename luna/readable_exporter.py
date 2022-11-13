@@ -143,7 +143,7 @@ class ReadableExporter:
         cmd_acc = ""
         active_content_hash = None
         active_block_is_offset_override = False
-        line_counter = 0
+        line_counter = 1
         brace_count = 0
         translated_text = ""
         human_comments = ""
