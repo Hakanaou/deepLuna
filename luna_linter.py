@@ -293,6 +293,82 @@ class LintAmericanSpelling:
         return errors
 
 
+class LintEmDashes:
+    # Dangling interruptions are 3x CJK dash
+    # Em-dashes within sentences are 2x CJK dash
+    CJK_DASH = '―'
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+
+        # Grab the actual scripting for this scene so we can detect glue cases
+        script_cmds = db.lines_for_scene(scene_name)
+
+        current_page = None
+        for cmd in script_cmds:
+            line = db.tl_line_for_cmd(cmd)
+
+            # If this line isn't translated, we can't lint properly
+            if not line.en_text:
+                current_page = cmd.page_number
+                continue
+
+            # Does this line not contain any u2015?
+            if self.CJK_DASH not in line.en_text:
+                current_page = cmd.page_number
+                continue
+
+            # If it ends with one, check how many it ends with
+            # If it _does_ contain dashes, filter them into groups of inter-text
+            # and post-text
+            ending_dash_count = 0
+            if line.en_text.endswith(self.CJK_DASH):
+                for i in range(len(line.en_text), 0, -1):
+                    if line.en_text[i - 1] == self.CJK_DASH:
+                        ending_dash_count += 1
+                    else:
+                        break
+
+                # Does this line consist of _only_ dashes?
+                if ending_dash_count == len(line.en_text):
+                    continue
+
+                if ending_dash_count != 3:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        cmd.page_number,
+                        line.en_text,
+                        "Line should end with 3x CJK dash, not"
+                        f"'{line.en_text[-ending_dash_count:]}'"
+                    ))
+
+            # Snip those off so we con't count em again
+            remaining_text = line.en_text[:-ending_dash_count]
+
+            # Now split that text into any other groups of CJK dashes that exist
+            dash_groups = []
+            acc = ''
+            for c in remaining_text:
+                if c == self.CJK_DASH:
+                    # Beginning of new dash group
+                    acc += c
+                    continue
+
+                # If this ends the group, is the group a 2x?
+                if acc and len(acc) != 2:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        cmd.page_number,
+                        line.en_text,
+                        "Em-dashes should be represented as 2x CJK dash, "
+                        f"not {len(acc)}"
+                    ))
+                    acc = ''
+
+        return errors
+
 class LintBannedPhrases:
     # Map of (search, case_sensitive) -> replace
     BANNED_PHRASES = {
@@ -962,6 +1038,7 @@ def main():
         LintConsistency(),
         LintInterrobang(),
         LintBannedPhrases(),
+        LintEmDashes(),
     ]
 
     # Iterate each scene
