@@ -397,7 +397,8 @@ class LintEmDashes:
                         "Em-dashes should be represented as 2x CJK dash, "
                         f"not {len(acc)}"
                     ))
-                    acc = ''
+
+                acc = ''
 
         return errors
 
