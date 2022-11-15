@@ -296,7 +296,10 @@ class LintAmericanSpelling:
 class LintEmDashes:
     # Dangling interruptions are 3x CJK dash
     # Em-dashes within sentences are 2x CJK dash
+
     CJK_DASH = '―'
+
+    PUNCTUATION = set("\"\' .―")
 
     def __call__(self, db, scene_name, pages):
         errors = []
@@ -304,47 +307,91 @@ class LintEmDashes:
         # Grab the actual scripting for this scene so we can detect glue cases
         script_cmds = db.lines_for_scene(scene_name)
 
-        current_page = None
-        for cmd in script_cmds:
-            line = db.tl_line_for_cmd(cmd)
+        cmd_idx = 0
+        while cmd_idx < len(script_cmds):
+            # Fetch the translation
+            page_number = script_cmds[cmd_idx].page_number
+            line = db.tl_line_for_cmd(script_cmds[cmd_idx])
+            line_text = line.en_text or ''
+            cmd_idx += 1
+
+            # Check for overrides
+            if ignore_linter(self.__class__.__name__, line.comment):
+                continue
+
+            # Continue to append any subsequent cmds if they are glued
+            while cmd_idx < len(script_cmds) and script_cmds[cmd_idx].is_glued:
+                line = db.tl_line_for_cmd(script_cmds[cmd_idx])
+                line_text += line.en_text or ''
+                cmd_idx += 1
+
+            # Save a copy of the original text for messages
+            raw_line_text = line_text
 
             # If this line isn't translated, we can't lint properly
-            if not line.en_text:
-                current_page = cmd.page_number
+            if not line_text:
                 continue
 
             # Does this line not contain any u2015?
-            if self.CJK_DASH not in line.en_text:
-                current_page = cmd.page_number
+            if self.CJK_DASH not in line_text:
                 continue
+
+            # Does it consist of _only_ dashes or punctuation?
+            chars = set(line_text)
+            if chars.difference(self.PUNCTUATION) == set():
+                continue
+
+            # Strip out any quotes and exclamation marks from this text because
+            # leading/trailing dashes inside quotes / ?! still count
+            line_text = ''.join([c for c in line_text if c not in set("\"'?!")])
 
             # If it ends with one, check how many it ends with
             # If it _does_ contain dashes, filter them into groups of inter-text
             # and post-text
             ending_dash_count = 0
-            if line.en_text.endswith(self.CJK_DASH):
-                for i in range(len(line.en_text), 0, -1):
-                    if line.en_text[i - 1] == self.CJK_DASH:
+            if line_text.endswith(self.CJK_DASH):
+                for i in range(len(line_text), 0, -1):
+                    if line_text[i - 1] == self.CJK_DASH:
                         ending_dash_count += 1
                     else:
                         break
-
-                # Does this line consist of _only_ dashes?
-                if ending_dash_count == len(line.en_text):
-                    continue
 
                 if ending_dash_count != 3:
                     errors.append(LintResult(
                         self.__class__.__name__,
                         scene_name,
-                        cmd.page_number,
-                        line.en_text,
-                        "Line should end with 3x CJK dash, not"
-                        f"'{line.en_text[-ending_dash_count:]}'"
+                        page_number,
+                        raw_line_text,
+                        "Line should end with 3x CJK dash, not "
+                        f"'{raw_line_text[-ending_dash_count:]}'"
                     ))
 
+            # Now do the same again for starting dashes
+            starting_dash_count = 0
+            if line_text.startswith(self.CJK_DASH):
+                for i in range(len(line_text)):
+                    if line_text[i] == self.CJK_DASH:
+                        starting_dash_count += 1
+                    else:
+                        break
+
+                if starting_dash_count != 3:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page_number,
+                        raw_line_text,
+                        "Line should start with 3x CJK dash, not "
+                        f"'{raw_line_text[:starting_dash_count]}'"
+                    ))
+
+
             # Snip those off so we con't count em again
-            remaining_text = line.en_text[:-ending_dash_count]
+            remaining_text = line_text
+            if ending_dash_count:
+                remaining_text = remaining_text[:-ending_dash_count]
+            if starting_dash_count:
+                remaining_text = remaining_text[starting_dash_count:]
 
             # Now split that text into any other groups of CJK dashes that exist
             dash_groups = []
@@ -360,8 +407,8 @@ class LintEmDashes:
                     errors.append(LintResult(
                         self.__class__.__name__,
                         scene_name,
-                        cmd.page_number,
-                        line.en_text,
+                        page_number,
+                        raw_line_text,
                         "Em-dashes should be represented as 2x CJK dash, "
                         f"not {len(acc)}"
                     ))
