@@ -766,6 +766,16 @@ class LintEllipses:
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
 
+                # Does this line _start_ with an ellipsis?
+                if line.startswith('...'):
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page[0],
+                        line,
+                        "Lines should not start with ellipses"
+                    ))
+
                 # Test lines for non-multiple-of-three periods
                 consecutive_dots = 0
                 for c in line:
