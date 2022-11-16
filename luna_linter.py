@@ -769,7 +769,9 @@ class LintConsistency:
 
         return errors
 
-class LintEllipses:
+class LintStartingEllipsis:
+
+    PUNCTUATION = set("\"'.?!")
 
     def __call__(self, db, scene_name, pages):
         errors = []
@@ -781,15 +783,47 @@ class LintEllipses:
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
 
-                # Does this line _start_ with an ellipsis?
-                if line.startswith('...'):
-                    errors.append(LintResult(
-                        self.__class__.__name__,
-                        scene_name,
-                        page[0],
-                        line,
-                        "Lines should not start with ellipses"
-                    ))
+                # If there's no ellipsis in this line, skip it
+                if '...' not in line:
+                    continue
+
+                # If it doesn't begin with an ellipsis (potentially in quotes)
+                # then skip it
+                starts_with_ellipsis = any([
+                    line.startswith('...'),
+                    line.startswith('"...'),
+                    line.startswith('\'...'),
+                ])
+                if not starts_with_ellipsis:
+                    continue
+
+                # If this line starts with an ellipsis, but consists of nothing
+                #_more_ than an ellipsis, let it slide
+                if set(line).difference(self.PUNCTUATION) == set():
+                    continue
+
+                # If we got this far, it's a lint error
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    page[0],
+                    line,
+                    "Lines should not start with ellipses"
+                ))
+
+        return errors
+
+class LintEllipses:
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
 
                 # Test lines for non-multiple-of-three periods
                 consecutive_dots = 0
@@ -1093,6 +1127,7 @@ def main():
         LintDupedWord(),
         LintBrokenFormatting(),
         LintEllipses(),
+        LintStartingEllipsis(),
         LintConsistency(),
         LintInterrobang(),
         LintBannedPhrases(),
