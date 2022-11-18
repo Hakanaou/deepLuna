@@ -321,6 +321,10 @@ class LintEmDashes:
             if self.CJK_DASH not in line_text:
                 continue
 
+            # Strip out any game engine control codes / newlines
+            line_text = re.sub('@.', '', line_text)
+            line_text = re.sub('\n', '', line_text)
+
             # Does it consist of _only_ dashes or punctuation?
             chars = set(line_text)
             if chars.difference(self.PUNCTUATION) == set():
