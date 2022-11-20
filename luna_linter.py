@@ -315,15 +315,20 @@ class LintEmDashes:
             line_text = line.en_text or ''
             cmd_idx += 1
 
-            # Check for overrides
-            if ignore_linter(self.__class__.__name__, line.comment):
-                continue
-
             # Continue to append any subsequent cmds if they are glued
+            lint_off = ignore_linter(self.__class__.__name__, line.comment)
             while cmd_idx < len(script_cmds) and script_cmds[cmd_idx].is_glued:
                 line = db.tl_line_for_cmd(script_cmds[cmd_idx])
+                lint_off = (
+                    lint_off or
+                    ignore_linter(self.__class__.__name__, line.comment)
+                )
                 line_text += line.en_text or ''
                 cmd_idx += 1
+
+            # If any of the included lines has a lint-off, skip
+            if lint_off:
+                continue
 
             # Save a copy of the original text for messages
             raw_line_text = line_text
