@@ -743,6 +743,14 @@ class LintUnspacedRuby:
 
 
 class LintDupedWord:
+    @staticmethod
+    def alpha_only(word):
+        return ''.join([
+            c for c in word
+            if (c >= 'A' and c <= 'Z')
+            or (c >= 'a' and c <= 'z')
+        ])
+
     def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
@@ -757,16 +765,18 @@ class LintDupedWord:
                 ).replace('\n', ' ')
                 words = line.split(' ')
                 for i in range(len(words)-1):
-                    if not words[i]:
+                    w_a = self.alpha_only(words[i])
+                    w_b = self.alpha_only(words[i+1])
+                    if not w_a or not w_b:
                         continue
-                    word_same = words[i] == words[i + 1]
-                    word_punctuated = (
+                    word_same = w_a == w_b
+                    first_word_punctuated = (
                         words[i][-1] == '.' or
                         words[i][-1] == '?' or
                         words[i][-1] == '!' or
                         words[i][-1] == ','
                     )
-                    if word_same and not word_punctuated:
+                    if word_same and not first_word_punctuated:
                         errors.append(LintResult(
                             self.__class__.__name__,
                             scene_name,
