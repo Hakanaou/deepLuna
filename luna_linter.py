@@ -252,6 +252,7 @@ class LintAmericanSpelling:
         'speciality': 'specialty',
         'spiralling': 'spiraling',
         'street light': 'streetlight',
+        'theatre': 'theater',
         'towards': 'toward',
         'travelled': 'traveled',
         'travelling': 'traveling',
