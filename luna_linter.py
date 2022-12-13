@@ -59,6 +59,7 @@ def ignore_linter(linter_name, line_comment):
 class LintNameMisspellings:
 
     BASE_NAMES = [
+        "Ahnenerbe",
         "Akiha",
         "Andou",
         "Andrei",
@@ -83,6 +84,7 @@ class LintNameMisspellings:
         "Kohaku",
         "Makihisa",
         "Mario",
+        "Messiaen",
         "Mio",
         "Narbareck",
         "Noel",
