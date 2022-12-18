@@ -327,6 +327,7 @@ class LintEmDashes:
                 continue
 
             # Strip out any game engine control codes / newlines
+            line_text = line_text.strip()
             line_text = re.sub('@.', '', line_text)
             line_text = re.sub('\n', '', line_text)
 
