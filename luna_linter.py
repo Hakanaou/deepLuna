@@ -13,6 +13,22 @@ from luna.ruby_utils import RubyUtils
 RubyUtils.ENABLE_PUA_CODES = True
 
 
+def enable_punct_linter_for_scene(scene_name):
+    if scene_name == 'ORPHANED_LINES':
+        return True
+
+    if 'ARC' in scene_name:
+        return True
+
+    if 'QA' in scene_name:
+        number = int(scene_name[-2:])
+        return number <= 16
+
+    # Otherwise, Ciel probably
+    day = int(scene_name[:2])
+    return day <= 11
+
+
 class Color:
     RED = '\033[31m'
     GREEN = '\033[32m'
@@ -293,6 +309,146 @@ class LintAmericanSpelling:
         return errors
 
 
+class LintEmDashes:
+    # Dangling interruptions are 3x CJK dash
+    # Em-dashes within sentences are 2x CJK dash
+
+    CJK_DASH = '―'
+
+    PUNCTUATION = set("\"\' .―")
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+
+        if not enable_punct_linter_for_scene(scene_name):
+            return []
+
+        # Grab the actual scripting for this scene so we can detect glue cases
+        script_cmds = db.lines_for_scene(scene_name)
+
+        cmd_idx = 0
+        while cmd_idx < len(script_cmds):
+            # Fetch the translation
+            page_number = script_cmds[cmd_idx].page_number
+            line = db.tl_line_for_cmd(script_cmds[cmd_idx])
+            line_text = line.en_text or ''
+            cmd_idx += 1
+
+            # Continue to append any subsequent cmds if they are glued
+            lint_off = ignore_linter(self.__class__.__name__, line.comment)
+            while cmd_idx < len(script_cmds) and script_cmds[cmd_idx].is_glued:
+                line = db.tl_line_for_cmd(script_cmds[cmd_idx])
+                lint_off = (
+                    lint_off or
+                    ignore_linter(self.__class__.__name__, line.comment)
+                )
+                line_text += line.en_text or ''
+                cmd_idx += 1
+
+            # If any of the included lines has a lint-off, skip
+            if lint_off:
+                continue
+
+            # Save a copy of the original text for messages
+            raw_line_text = line_text
+
+            # If this line isn't translated, we can't lint properly
+            if not line_text:
+                continue
+
+            # Does this line not contain any u2015?
+            if self.CJK_DASH not in line_text:
+                continue
+
+            # Strip out any game engine control codes / newlines
+            line_text = re.sub('@.', '', line_text)
+            line_text = re.sub('\n', '', line_text)
+
+            # Strip leading spaces since it's valid to have padded triple
+            # dash lead-ins
+            line_text = line_text.lstrip()
+
+            # Does it consist of _only_ dashes or punctuation?
+            chars = set(line_text)
+            if chars.difference(self.PUNCTUATION) == set():
+                continue
+
+            # Strip out any quotes and exclamation marks from this text because
+            # leading/trailing dashes inside quotes / ?! still count
+            line_text = ''.join([c for c in line_text if c not in set("\"'?!")])
+
+            # If it ends with one, check how many it ends with
+            # If it _does_ contain dashes, filter them into groups of inter-text
+            # and post-text
+            ending_dash_count = 0
+            if line_text.endswith(self.CJK_DASH):
+                for i in range(len(line_text), 0, -1):
+                    if line_text[i - 1] == self.CJK_DASH:
+                        ending_dash_count += 1
+                    else:
+                        break
+
+                if ending_dash_count != 3:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page_number,
+                        raw_line_text,
+                        "Line should end with 3x CJK dash, not "
+                        f"'{raw_line_text[-ending_dash_count:]}'"
+                    ))
+
+            # Now do the same again for starting dashes
+            starting_dash_count = 0
+            if line_text.startswith(self.CJK_DASH):
+                for i in range(len(line_text)):
+                    if line_text[i] == self.CJK_DASH:
+                        starting_dash_count += 1
+                    else:
+                        break
+
+                if starting_dash_count != 3:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page_number,
+                        raw_line_text,
+                        "Line should start with 3x CJK dash, not "
+                        f"'{raw_line_text[:starting_dash_count]}'"
+                    ))
+
+
+            # Snip those off so we con't count em again
+            remaining_text = line_text
+            if ending_dash_count:
+                remaining_text = remaining_text[:-ending_dash_count]
+            if starting_dash_count:
+                remaining_text = remaining_text[starting_dash_count:]
+
+            # Now split that text into any other groups of CJK dashes that exist
+            dash_groups = []
+            acc = ''
+            for c in remaining_text:
+                if c == self.CJK_DASH:
+                    # Beginning of new dash group
+                    acc += c
+                    continue
+
+                # If this ends the group, is the group a 2x?
+                if acc and len(acc) != 2:
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page_number,
+                        raw_line_text,
+                        "Em-dashes should be represented as 2x CJK dash, "
+                        f"not {len(acc)}"
+                    ))
+
+                acc = ''
+
+        return errors
+
 class LintBannedPhrases:
     # Map of (search, case_sensitive) -> replace
     BANNED_PHRASES = {
@@ -440,6 +596,16 @@ class LintChoices:
                     cmd.page_number,
                     line.en_text,
                     "Choice text must begin with leading space"
+                ))
+
+            # Starts with an ellipsis?
+            if False and line.en_text.strip().startswith('...'):
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    cmd.page_number,
+                    line.en_text,
+                    "Choice text should not begin with ellipsis"
                 ))
 
             # Too long?
@@ -645,10 +811,59 @@ class LintConsistency:
 
         return errors
 
+class LintStartingEllipsis:
+
+    PUNCTUATION = set("\"'.?!")
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+
+        if not enable_punct_linter_for_scene(scene_name):
+            return []
+
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+
+                # If there's no ellipsis in this line, skip it
+                if '...' not in line:
+                    continue
+
+                # If it doesn't begin with an ellipsis (potentially in quotes)
+                # then skip it
+                starts_with_ellipsis = any([
+                    line.startswith('...'),
+                    line.startswith('"...'),
+                    line.startswith('\'...'),
+                ])
+                if not starts_with_ellipsis:
+                    continue
+
+                # If this line starts with an ellipsis, but consists of nothing
+                #_more_ than an ellipsis, let it slide
+                if set(line).difference(self.PUNCTUATION) == set():
+                    continue
+
+                # If we got this far, it's a lint error
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    page[0],
+                    line,
+                    "Lines should not start with ellipses"
+                ))
+
+        return errors
+
 class LintEllipses:
 
     def __call__(self, db, scene_name, pages):
         errors = []
+
         for page in pages:
             for line, comment in page:
                 if not line:
@@ -959,9 +1174,11 @@ def main():
         LintDupedWord(),
         LintBrokenFormatting(),
         LintEllipses(),
+        LintStartingEllipsis(),
         LintConsistency(),
         LintInterrobang(),
         LintBannedPhrases(),
+        LintEmDashes(),
     ]
 
     # Iterate each scene
