@@ -13,6 +13,22 @@ from luna.ruby_utils import RubyUtils
 RubyUtils.ENABLE_PUA_CODES = True
 
 
+def enable_punct_linter_for_scene(scene_name):
+    if scene_name == 'ORPHANED_LINES':
+        return True
+
+    if 'ARC' in scene_name:
+        return True
+
+    if 'QA' in scene_name:
+        number = int(scene_name[-2:])
+        return number <= 16
+
+    # Otherwise, Ciel probably
+    day = int(scene_name[:2])
+    return day <= 11
+
+
 class Color:
     RED = '\033[31m'
     GREEN = '\033[32m'
@@ -304,6 +320,9 @@ class LintEmDashes:
     def __call__(self, db, scene_name, pages):
         errors = []
 
+        if not enable_punct_linter_for_scene(scene_name):
+            return []
+
         # Grab the actual scripting for this scene so we can detect glue cases
         script_cmds = db.lines_for_scene(scene_name)
 
@@ -344,6 +363,10 @@ class LintEmDashes:
             # Strip out any game engine control codes / newlines
             line_text = re.sub('@.', '', line_text)
             line_text = re.sub('\n', '', line_text)
+
+            # Strip leading spaces since it's valid to have padded triple
+            # dash lead-ins
+            line_text = line_text.lstrip()
 
             # Does it consist of _only_ dashes or punctuation?
             chars = set(line_text)
@@ -575,6 +598,16 @@ class LintChoices:
                     "Choice text must begin with leading space"
                 ))
 
+            # Starts with an ellipsis?
+            if False and line.en_text.strip().startswith('...'):
+                errors.append(LintResult(
+                    self.__class__.__name__,
+                    scene_name,
+                    cmd.page_number,
+                    line.en_text,
+                    "Choice text should not begin with ellipsis"
+                ))
+
             # Too long?
             # Auto-ignore this one if it's the last choice in the scene, in
             # which case it doesn't overflow onto anything
@@ -784,6 +817,10 @@ class LintStartingEllipsis:
 
     def __call__(self, db, scene_name, pages):
         errors = []
+
+        if not enable_punct_linter_for_scene(scene_name):
+            return []
+
         for page in pages:
             for line, comment in page:
                 if not line:
@@ -826,6 +863,7 @@ class LintEllipses:
 
     def __call__(self, db, scene_name, pages):
         errors = []
+
         for page in pages:
             for line, comment in page:
                 if not line:
