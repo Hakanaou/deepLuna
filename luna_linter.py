@@ -361,12 +361,14 @@ class LintEmDashes:
                 continue
 
             # Strip out any game engine control codes / newlines
+            line_text = re.sub('%{[\w/]*}', '', line_text)
             line_text = re.sub('@.', '', line_text)
-            line_text = re.sub('\n', '', line_text)
+            line_text = re.sub('\n', ' ', line_text)
 
             # Strip leading spaces since it's valid to have padded triple
-            # dash lead-ins
-            line_text = line_text.lstrip()
+            # dash lead-ins, as well as any trailing spaces since lines can't
+            # have trailing whitespace
+            line_text = line_text.strip()
 
             # Does it consist of _only_ dashes or punctuation?
             chars = set(line_text)
@@ -395,7 +397,7 @@ class LintEmDashes:
                         page_number,
                         raw_line_text,
                         "Line should end with 3x CJK dash, not "
-                        f"'{raw_line_text[-ending_dash_count:]}'"
+                        f"'{line_text[-ending_dash_count:]}'"
                     ))
 
             # Now do the same again for starting dashes
