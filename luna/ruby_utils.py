@@ -171,6 +171,10 @@ class RubyUtils:
                 elif cc_acc == 'center':
                     # Try and center this afterwards
                     should_center = True
+                elif cc_acc == 'no_break':
+                    # This line should not be linebroken.
+                    # Handled in translation_db, not here.
+                    pass
                 elif cc_acc == 'nothing':
                     # Used as a token to allow empty lines
                     processed_line += ""

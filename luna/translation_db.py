@@ -235,6 +235,10 @@ class TranslationDb:
                     prev_page_number = command.page_number
                     cursor_position = 0
 
+                # Before processing the line for control codes, check to
+                # see if it has any flags we care about here
+                skip_linebreak = '%{no_break}' in tl_text
+
                 # Reify any custom control codes present in the line
                 coded_text = RubyUtils.apply_control_codes(tl_text)
 
@@ -259,7 +263,7 @@ class TranslationDb:
                 # Break the text, unless this is a QA scene in which case
                 # it's all manual
                 linebroken_text = (
-                    coded_text if scene_is_qa else
+                    coded_text if (scene_is_qa or skip_linebreak) else
                     RubyUtils.linebreak_text(
                         coded_text,
                         Constants.CHARS_PER_LINE,

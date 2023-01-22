@@ -251,3 +251,21 @@ class LinebreakTests(unittest.TestCase):
         }
         result = db.generate_linebroken_text_map()
         self.assertEqual(result, expect)
+
+    def test_manual_linebreak_disable(self):
+        lines = [
+            TranslationDb.TLLine(
+                "jp0",
+                "%{no_break}"
+                "[zap00][zap00][zap00][zap00][zap00][zap00][zap00][zap00]"
+            ),
+        ]
+        cmds = [
+            TranslationDb.TextCommand(0, lines[0].content_hash(), 0),
+        ]
+        db = self.mock_db(lines, cmds)
+        expect = {
+            0: "[zap00][zap00][zap00][zap00][zap00][zap00][zap00][zap00]"
+        }
+        result = db.generate_linebroken_text_map()
+        self.assertEqual(result, expect)
