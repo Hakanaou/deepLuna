@@ -220,6 +220,7 @@ class LintAmericanSpelling:
         'behaviours': 'behaviors',
         'cancelled': 'canceled',
         'cancelling': 'canceling',
+        'civilisation': 'civilization',
         'cliche': 'cliché',
         'colour': 'color',
         'colours': 'colors',
@@ -244,6 +245,7 @@ class LintAmericanSpelling:
         'honours': 'honors',
         'jeez': 'geez',
         'judgement': 'judgment',
+        'labelled': 'labeled',
         'leaped': 'leapt',  # Exception since leaped looks dumb
         'licence': 'license',
         'licence': 'license',
