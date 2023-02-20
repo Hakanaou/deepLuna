@@ -461,6 +461,7 @@ class LintBannedPhrases:
         ('pile driver', False): 'pile bunker',
         ('white woman', False): 'woman in white',
         ('white avatar', False): 'avatar in white',
+        ('blonde boy', False): 'blond boy',
 
         # Need to handle sentence start explicitly on these since we're case-sen
         ('what on Earth', True): 'what on earth',
@@ -913,6 +914,8 @@ class LintVerbotenUnicode:
         '”': '"',
         '’': '\'',
         '、': ',',
+        '！': '!',
+        '？': '?',
     }
 
     def __call__(self, db, scene_name, pages):
