@@ -24,6 +24,10 @@ def enable_punct_linter_for_scene(scene_name):
         number = int(scene_name[-2:])
         return number <= 16
 
+    # If it's the first half of d13, we can enable it
+    if '13_01_01' in scene_name:
+        return True
+
     # Otherwise, Ciel probably
     day = int(scene_name[:2])
     return day <= 12
@@ -218,6 +222,7 @@ class LintAmericanSpelling:
         'apologising': 'apologizing',
         'behaviour': 'behavior',
         'behaviours': 'behaviors',
+        'cafe': 'café',
         'cancelled': 'canceled',
         'cancelling': 'canceling',
         'civilisation': 'civilization',
@@ -459,6 +464,8 @@ class LintBannedPhrases:
         ('curry bread', False): 'curry bun',
         ('head to head', False): 'head-to-head',
         ('pile driver', False): 'pile bunker',
+        ('piledriver', False): 'pile bunker',
+        ('pile-driver', False): 'pile bunker',
         ('white woman', False): 'woman in white',
         ('white avatar', False): 'avatar in white',
         ('blonde boy', False): 'blond boy',
