@@ -480,6 +480,9 @@ class LintBannedPhrases:
     }
 
     def __call__(self, db, scene_name, pages):
+        if not enable_punct_linter_for_scene(scene_name):
+            return []
+
         errors = []
         for page in pages:
             for line, comment in page:
