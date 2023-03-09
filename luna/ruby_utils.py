@@ -185,6 +185,9 @@ class RubyUtils:
                 elif cc_acc == 'force_glue':
                     # Handled in tl_db, non-printing.
                     processed_line += ""
+                elif cc_acc == 'e_35':
+                    # Custom ^-35 exponent character
+                    processed_line += "\ue200"
                 elif cc_acc == 'i':
                     # Offset ascii glyphs into the italic text region
                     assert not enable_asserts or glyph_offset is None, \
