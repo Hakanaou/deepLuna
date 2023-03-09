@@ -477,6 +477,45 @@ class LintBannedPhrases:
         ('How on Earth', True): 'How on earth',
         ('down to Earth', True): 'down to earth',
         ('Down to Earth', True): 'Down to earth',
+
+        # Lore terms that must be capitalized
+        ('acting presbyter', True): 'Acting Presbyter',
+        ('baptismal rite', True): 'Baptismal Rite',
+        ('black key', True): 'Black Key',
+        ('black keys', True): 'Black Keys',
+        ('burial agency', True): 'Burial Agency',
+        ('conceptual weapon', True): 'Conceptual Weapon',
+        ('dead apostle', True): 'Dead Apostle',
+        (' ether ', True): 'Ether',  # Too fragmentary to be effective
+        ('executor', True): 'Executor',
+        ('hemonomic principle', True): 'Hemonomic Principle',
+        ('holy church', True): 'Holy Church',
+        ('inversion impulse', True): 'Inversion Impulse',
+        ('lifescale', True): 'Lifescale',
+        ('magecraft formula', True): 'Magecraft Formula',
+        ('magecraft foundation', True): 'Magecraft Foundation',
+        ('mages association', True): 'Mages Association',
+        ('magic circuit', True): 'Magic Circuit',
+        ('marble phantasm', True): 'Marble Phantasm',
+        ('mystic code ', True): 'Mystic Code',
+        ('mystic eyes', True): 'Mystic Eyes',
+        ('nightkin', True): 'Nightkin',
+        ('numeromancy', True): 'Numeromancy',
+        ('plating effect', True): 'Plating Effect',
+        ('sacrament assembly', True): 'Sacrament Assembly',
+        ('scriptural weapon', True): 'Scriptural Weapon',
+        ('scriptural weapons', True): 'Scriptural Weapons',
+        ('suzerain', True): 'Suzerain',
+        ('true ancestor', True): 'True Ancstor',
+
+        # 南口 / 北口 are really more like areas than points in space.
+        # They should be blended more fluently with the sentence.
+        # ('north gate', False): 'plaza north of the station, etc.',
+        # ('south gate', False): 'plaza south of the station, etc.',
+
+        # Uncomment when everything else has been merged down
+        # ('...!', False): 'No ellipses before exclamation marks.',
+        # ('...?!', False): 'No ellipses before exclamation marks.',
     }
 
     def __call__(self, db, scene_name, pages):
