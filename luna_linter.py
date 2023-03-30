@@ -30,7 +30,7 @@ def enable_punct_linter_for_scene(scene_name):
 
     # Otherwise, Ciel probably
     day = int(scene_name[:2])
-    return day <= 12
+    return day <= 13
 
 
 class Color:
