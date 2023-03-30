@@ -514,8 +514,8 @@ class LintBannedPhrases:
         # ('south gate', False): 'plaza south of the station, etc.',
 
         # Uncomment when everything else has been merged down
-        # ('...!', False): 'No ellipses before exclamation marks.',
-        # ('...?!', False): 'No ellipses before exclamation marks.',
+        ('...!', False): 'No ellipses before exclamation marks.',
+        ('...?!', False): 'No ellipses before exclamation marks.',
     }
 
     def __call__(self, db, scene_name, pages):
