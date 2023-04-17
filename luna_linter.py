@@ -24,8 +24,10 @@ def enable_punct_linter_for_scene(scene_name):
         number = int(scene_name[-2:])
         return number <= 16
 
-    # If it's the first half of d13, we can enable it
-    if '13_01_01' in scene_name:
+    # If it's the first half of d14, we can enable it
+    if '14_01_' in scene_name:
+        return True
+    if '14_01A_' in scene_name:
         return True
 
     # Otherwise, Ciel probably
@@ -512,8 +514,8 @@ class LintBannedPhrases:
 
         # 南口 / 北口 are really more like areas than points in space.
         # They should be blended more fluently with the sentence.
-        # ('north gate', False): 'plaza north of the station, etc.',
-        # ('south gate', False): 'plaza south of the station, etc.',
+        ('north gate', False): 'plaza north of the station, etc.',
+        ('south gate', False): 'plaza south of the station, etc.',
 
         # Uncomment when everything else has been merged down
         ('...!', False): 'No ellipses before exclamation marks.',
