@@ -992,6 +992,41 @@ class LintVerbotenUnicode:
         return errors
 
 
+class LintRubyUnicode:
+    """
+    Text spacing inside ruby follows a different codepath, just prevent
+    people using non-ascii in lolwer ruby blocks
+    """
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+                pairs = re.findall(r"<([\w\s]+)\|([\w\s]+)>", line)
+                for subtext, ruby in pairs:
+
+                    contains_unicode = False
+                    for c in subtext:
+                        if ord(c) >= 128:
+                            contains_unicode = True
+                    for c in ruby:
+                        if ord(c) >= 128:
+                            contains_unicode = True
+
+                    if contains_unicode:
+                        errors.append(LintResult(
+                            self.__class__.__name__,
+                            scene_name,
+                            page[0],
+                            line,
+                            f"Ruby '<{subtext}|{ruby}>' contains unicode"
+                        ))
+
+        return errors
+
 class LintUnspacedRuby:
     def __call__(self, db, scene_name, pages):
         errors = []
@@ -1239,6 +1274,7 @@ def main():
         LintInterrobang(),
         LintBannedPhrases(),
         LintEmDashes(),
+        LintRubyUnicode(),
     ]
 
     # Iterate each scene
