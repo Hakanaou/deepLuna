@@ -14,25 +14,12 @@ RubyUtils.ENABLE_PUA_CODES = True
 
 
 def enable_punct_linter_for_scene(scene_name):
-    if scene_name == 'ORPHANED_LINES':
-        return True
-
-    if 'ARC' in scene_name:
-        return True
-
+    # Only QA 24/5 still need exclusion
     if 'QA' in scene_name:
         number = int(scene_name[-2:])
-        return number <= 16
+        return number <= 23
 
-    # If it's the first half of d14, we can enable it
-    if '14_01_' in scene_name:
-        return True
-    if '14_01A_' in scene_name:
-        return True
-
-    # Otherwise, Ciel probably
-    day = int(scene_name[:2])
-    return day <= 13
+    return True
 
 
 class Color:
