@@ -480,7 +480,6 @@ class LintBannedPhrases:
         ('get-up', False): 'getup',
         ('cold-hearted', False): 'coldhearted',
         ('sugar coat', False): 'sugarcoat',
-        ('head on', False): 'head-on',
         ('after-effects', False): 'aftereffects',
         ('off-beat', False): 'offbeat',
         ('brand new', False): 'brand-new',

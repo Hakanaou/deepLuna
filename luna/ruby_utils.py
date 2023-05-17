@@ -136,7 +136,7 @@ class RubyUtils:
         cc_acc = ""
         glyph_offset = None
         should_center = False
-        should_justify_right = False
+        should_align_right = False
         for c in text:
             # Handle control mode entry
             if c == '%':
@@ -172,9 +172,9 @@ class RubyUtils:
                 elif cc_acc == 'center':
                     # Try and center this afterwards
                     should_center = True
-                elif cc_acc == 'justify_right':
-                    # Try and right-justify this afterwards
-                    should_justify_right = True
+                elif cc_acc == 'align_right':
+                    # Try and right-align this afterwards
+                    should_align_right = True
                 elif cc_acc == 'no_break':
                     # This line should not be linebroken.
                     # Handled in translation_db, not here.
@@ -252,10 +252,10 @@ class RubyUtils:
             ) / 2)
 
             # Pad the front with spaces to center-align
-            processed_line = (' '  * padding_chars) + processed_line
+            processed_line = (' ' * padding_chars) + processed_line
 
         # If this line should be right-justified, try and do it now
-        if should_justify_right:
+        if should_align_right:
             # If the line doesn't fit, complain
             assert '\n' not in processed_line
             assert cls.noruby_len(processed_line) <= Constants.CHARS_PER_LINE
@@ -266,8 +266,7 @@ class RubyUtils:
             )
 
             # Pad the front with spaces
-            processed_line = (' '  * padding_chars) + processed_line
-
+            processed_line = (' ' * padding_chars) + processed_line
 
         return processed_line
 
