@@ -197,7 +197,7 @@ class RubyUtils:
                 elif cc_acc == 'r':
                     # Offset ascii glyphs into the reverso text region
                     assert not enable_asserts or glyph_offset is None, \
-                            f"Illegal nested r in line {text}"
+                        f"Illegal nested r in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 1
                 elif cc_acc == 'ri':
