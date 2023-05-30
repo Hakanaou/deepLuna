@@ -1009,6 +1009,40 @@ class LintRubyUnicode:
     Text spacing inside ruby follows a different codepath, just prevent
     people using non-ascii in lolwer ruby blocks
     """
+
+    @staticmethod
+    def extract_ruby_pairs(line):
+        pairs = []
+        in_ruby_lower = False
+        in_ruby_upper = False
+        cur_lower = None
+        cur_upper = None
+        for c in line:
+            if in_ruby_lower:
+                if c == '|':
+                    in_ruby_lower = False
+                    in_ruby_upper = True
+                    continue
+
+                cur_lower += c
+                continue
+
+            if in_ruby_upper:
+                if c == '>':
+                    pairs.append((cur_lower, cur_upper))
+                    in_ruby_upper = False
+                    continue
+
+                cur_upper += c
+                continue
+
+            if c == '<':
+                in_ruby_lower = True
+                cur_lower = ""
+                cur_upper = ""
+
+        return pairs
+
     def __call__(self, db, scene_name, pages):
         errors = []
         for page in pages:
@@ -1017,27 +1051,38 @@ class LintRubyUnicode:
                     continue
                 if ignore_linter(self.__class__.__name__, comment):
                     continue
-                pairs = re.findall(r"<([\w\s]+)\|([\w\s]+)>", line)
+
+                # Apply control codes so that we can detect font effects
+                # inside ruby
+                line = RubyUtils.apply_control_codes(line)
+
+                # Find all ruby pairs in this line
+                pairs = self.extract_ruby_pairs(line)
                 for subtext, ruby in pairs:
 
-                    contains_unicode = False
+                    unicode_chars = []
                     for c in subtext:
                         if ord(c) >= 128:
-                            contains_unicode = True
-                    for c in ruby:
-                        if ord(c) >= 128:
-                            contains_unicode = True
+                            unicode_chars.append(c)
 
-                    if contains_unicode:
+                    # Kinda OK if the top part has it, since ruby double-spaces
+                    # things anyway
+                    # for c in ruby:
+                    #     if ord(c) >= 128:
+                    #         unicode_chars.append(c)
+
+                    if unicode_chars:
                         errors.append(LintResult(
                             self.__class__.__name__,
                             scene_name,
                             page[0],
                             line,
-                            f"Ruby '<{subtext}|{ruby}>' contains unicode"
+                            f"Ruby '<{subtext}|{ruby}>' contains unicode "
+                            f"({unicode_chars})"
                         ))
 
         return errors
+
 
 class LintUnspacedRuby:
     def __call__(self, db, scene_name, pages):
