@@ -212,6 +212,12 @@ class RubyUtils:
                         f"Illegal nested g in line {text}"
                     if cls.ENABLE_PUA_CODES:
                         glyph_offset = PUA_OFFSET + 128 * 3
+                elif cc_acc == 'flip_vertical':
+                    # Offset ascii glyphs into the vertical flip region
+                    assert not enable_asserts or glyph_offset is None, \
+                        f"Illegal nested g in line {text}"
+                    if cls.ENABLE_PUA_CODES:
+                        glyph_offset = PUA_OFFSET + 128 * 5
                 elif cc_acc[0] == '/':
                     is_in_tag = \
                         not cls.ENABLE_PUA_CODES or glyph_offset is not None
