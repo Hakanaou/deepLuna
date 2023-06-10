@@ -13,15 +13,6 @@ from luna.ruby_utils import RubyUtils
 RubyUtils.ENABLE_PUA_CODES = True
 
 
-def enable_punct_linter_for_scene(scene_name):
-    # Only QA 24/5 still need exclusion
-    if 'QA' in scene_name:
-        number = int(scene_name[-2:])
-        return number <= 23
-
-    return True
-
-
 class Color:
     RED = '\033[31m'
     GREEN = '\033[32m'
@@ -332,9 +323,6 @@ class LintEmDashes:
     def __call__(self, db, scene_name, pages):
         errors = []
 
-        if not enable_punct_linter_for_scene(scene_name):
-            return []
-
         # Grab the actual scripting for this scene so we can detect glue cases
         script_cmds = db.lines_for_scene(scene_name)
 
@@ -535,9 +523,6 @@ class LintBannedPhrases:
     }
 
     def __call__(self, db, scene_name, pages):
-        if not enable_punct_linter_for_scene(scene_name):
-            return []
-
         errors = []
         for page in pages:
             for line, comment in page:
@@ -669,7 +654,7 @@ class LintChoices:
                 ))
 
             # Starts with an ellipsis?
-            if False and line.en_text.strip().startswith('...'):
+            if line.en_text.strip().startswith('...'):
                 errors.append(LintResult(
                     self.__class__.__name__,
                     scene_name,
@@ -887,9 +872,6 @@ class LintStartingEllipsis:
 
     def __call__(self, db, scene_name, pages):
         errors = []
-
-        if not enable_punct_linter_for_scene(scene_name):
-            return []
 
         for page in pages:
             for line, comment in page:
