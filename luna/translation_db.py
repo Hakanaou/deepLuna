@@ -294,6 +294,9 @@ class TranslationDb:
                         #   precicely 55 chars, force newline at the end of
                         #   this current line
                         next_line = self._line_by_hash[next_cmd.jp_hash]
+                        if next_cmd.offset in self._overrides_by_offset:
+                            next_line = \
+                                self._overrides_by_offset[next_cmd.offset]
                         next_tl = next_line.en_text or tl_line.jp_text
                         if next_tl and next_tl[0] == ' ' \
                                 and linebroken_text[-1] != '\n':
@@ -306,7 +309,10 @@ class TranslationDb:
                         # part of the final word IF it would cause a linebreak
                         # when added
                         next_word_len = RubyUtils.noruby_len(
-                            next_tl.split(' ')[0])
+                            RubyUtils.apply_control_codes(
+                                next_tl.split(' ')[0]
+                            )
+                        )
                         next_word_would_break = False
                         if did_break_line:
                             next_word_would_break = \
