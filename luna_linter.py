@@ -496,8 +496,6 @@ class LintBannedPhrases:
         ('holy church', True): 'Holy Church',
         ('inversion impulse', True): 'Inversion Impulse',
         ('lifescale', True): 'Lifescale',
-        ('magecraft formula', True): 'Magecraft Formula',
-        ('magecraft foundation', True): 'Magecraft Foundation',
         ('mages association', True): 'Mages Association',
         ('magic circuit', True): 'Magic Circuit',
         ('marble phantasm', True): 'Marble Phantasm',
