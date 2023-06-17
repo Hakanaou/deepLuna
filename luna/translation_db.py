@@ -376,7 +376,7 @@ class TranslationDb:
                 continue
 
             # Write the offset of this string to the offset table
-            offset_table.write(struct.pack("<I", string_table.tell()))
+            offset_table.write(struct.pack(">I", string_table.tell()))
 
             # Write the string data to the string table
             string_table.write(
