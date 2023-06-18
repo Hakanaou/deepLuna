@@ -508,7 +508,7 @@ class LintBannedPhrases:
         ('scriptural weapon', True): 'Scriptural Weapon',
         ('scriptural weapons', True): 'Scriptural Weapons',
         ('suzerain', True): 'Suzerain',
-        ('true ancestor', True): 'True Ancstor',
+        ('true ancestor', True): 'True Ancestor',
 
         # 南口 / 北口 are really more like areas than points in space.
         # They should be blended more fluently with the sentence.
