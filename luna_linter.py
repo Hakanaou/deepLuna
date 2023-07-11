@@ -984,6 +984,35 @@ class LintVerbotenUnicode:
         return errors
 
 
+class LintTimeFormat:
+
+    def __call__(self, db, scene_name, pages):
+        errors = []
+        for page in pages:
+            for line, comment in page:
+                if not line:
+                    continue
+                if ignore_linter(self.__class__.__name__, comment):
+                    continue
+
+                # Does this line have a colon-delimited time in it?
+                matches = re.findall(r"(\d+:\d\d)", line)
+                if not matches:
+                    continue
+
+                # Just assert that there's at least something in there
+                if matches and not ('AM' in line or 'PM' in line):
+                    errors.append(LintResult(
+                        self.__class__.__name__,
+                        scene_name,
+                        page[0],
+                        line,
+                        f"Missing AM/PM marker on time {matches[0]}"
+                    ))
+
+        return errors
+
+
 class LintRubyUnicode:
     """
     Text spacing inside ruby follows a different codepath, just prevent
@@ -1312,6 +1341,7 @@ def main():
         LintBannedPhrases(),
         LintEmDashes(),
         LintRubyUnicode(),
+        LintTimeFormat(),
     ]
 
     # Iterate each scene
