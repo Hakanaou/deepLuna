@@ -400,8 +400,9 @@ class ReadableExporter:
             generated_comment = (
                 f"-- Page {line.page_number}, Offset {line.offset}."
                 f"{glued}{choice}{mods}\n"
-                f"-- {tl_info.jp_text.strip()}"
             )
+            for jp_line in tl_info.jp_text.strip().split('\n'):
+                generated_comment += f"-- {jp_line.strip()}\n"
 
             # Collate human comments and prepend //
             human_comment = ""
@@ -423,7 +424,7 @@ class ReadableExporter:
             ret += (
                 identifier +
                 "{\n"
-                f"{generated_comment}\n"
+                f"{generated_comment}"
                 f"{human_comment}"
                 f"{tl_text}\n"
                 "}\n"
