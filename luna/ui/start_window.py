@@ -27,7 +27,8 @@ class StartWindow:
 
         # Load logo
         frame_image = tk.Frame(self._root, borderwidth=5)
-        icon = Image.open("icone.png").resize((140, 140))
+        basedir = os.path.join(os.path.dirname(__file__))
+        icon = Image.open(os.path.join(basedir,  "../../icone.png")).resize((140, 140))
         self._icon_image = ImageTk.PhotoImage(icon)
         image = tk.Label(frame_image, image=self._icon_image)
         image.image = ImageTk.PhotoImage(icon)
